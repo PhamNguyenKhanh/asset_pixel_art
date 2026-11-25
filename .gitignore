@@ -20,3 +20,6 @@ npm-debug.log*
 .env*.local
 *.tsbuildinfo
 next-env.d.ts
+
+# Doc
+/docs/

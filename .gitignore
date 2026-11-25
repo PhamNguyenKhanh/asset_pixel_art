@@ -1,0 +1,22 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# Next.js
+/.next/
+/out/
+/build
+
+# Testing
+/coverage
+/playwright-report
+/test-results
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+.env*.local
+*.tsbuildinfo
+next-env.d.ts

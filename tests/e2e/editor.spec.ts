@@ -1,13 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Pixel Art Studio — Core & Piskel-like Editor (Phase 1 & 2)", () => {
-  test("draws, uses shape/select tools, manages layers & frames, and opens export dialog", async ({
+test.describe("Pixel Art Studio — Core Editor & Dynamic Asset Context (Phases 1–3)", () => {
+  test("draws, uses shapes, manages layers/frames, switches asset context, and opens export", async ({
     page,
   }) => {
     await page.goto("/");
 
-    // Verify default 32x32 canvas
+    // Verify default 32x32 canvas and default Custom context
     await expect(page.getByTestId("canvas-size-badge")).toHaveText("32×32");
+    await expect(page.getByTestId("context-pill-btn")).toContainText("Custom");
     await expect(page.getByTestId("display-canvas")).toBeVisible();
     await expect(page.getByTestId("undo-btn")).toBeDisabled();
 
@@ -28,7 +29,7 @@ test.describe("Pixel Art Studio — Core & Piskel-like Editor (Phase 1 & 2)", ()
     await expect(page.getByTestId("redo-btn")).toBeEnabled();
     await page.getByTestId("redo-btn").click();
 
-    // Switch through Phase 2 tools via keyboard shortcuts
+    // Switch Phase 2 tools via shortcuts
     await page.keyboard.press("l");
     await expect(page.getByTestId("tool-line")).toHaveAttribute("data-active", "true");
     await page.keyboard.press("u");
@@ -40,13 +41,23 @@ test.describe("Pixel Art Studio — Core & Piskel-like Editor (Phase 1 & 2)", ()
     await page.keyboard.press("v");
     await expect(page.getByTestId("tool-move")).toHaveAttribute("data-active", "true");
 
-    // Manage Layers in Layers Tab
+    // Phase 3: Switch Asset Context to Tree and verify context-aware suggestions in Color Panel
+    await page.getByTestId("context-pill-btn").click();
+    await expect(page.getByTestId("context-panel")).toBeVisible();
+    await page.getByTestId("asset-type-tree").click();
+    await expect(page.getByTestId("context-pill-btn")).toContainText("Tree");
+    await expect(page.getByTestId("context-material-foliage")).toHaveAttribute("data-active", "true");
+
+    await page.getByTestId("tab-colors").click();
+    await expect(page.getByTestId("color-panel-context-suggestions")).toBeVisible();
+
+    // Manage Layers
     await page.getByTestId("tab-layers").click();
     await expect(page.getByTestId("layer-panel")).toBeVisible();
     await page.getByTestId("add-layer-btn").click();
     await expect(page.getByTestId("tab-layers")).toContainText("Layers (2)");
 
-    // Add Frame in Timeline & Toggle Onion Skin
+    // Add Frame & Toggle Onion Skin
     await page.getByTestId("add-frame-btn").click();
     await expect(page.getByTestId("frame-card-1")).toBeVisible();
     await page.getByTestId("onion-skin-btn").click();
@@ -60,7 +71,7 @@ test.describe("Pixel Art Studio — Core & Piskel-like Editor (Phase 1 & 2)", ()
     await page.getByTestId("confirm-resize-btn").click();
     await expect(page.getByTestId("canvas-size-badge")).toHaveText("64×64");
 
-    // Open Export Dialog and verify format tabs
+    // Open Export Dialog
     await page.getByTestId("export-btn").click();
     await expect(page.getByTestId("export-dialog")).toBeVisible();
     await page.getByTestId("export-tab-spritesheet").click();

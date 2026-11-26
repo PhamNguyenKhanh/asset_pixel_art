@@ -1,4 +1,5 @@
 import type { CustomPalette, OnionSkinConfig } from "@/types/editor";
+import type { AssetContextState } from "@/types/assetContext";
 import { Frame } from "@/core/document/Frame";
 import { Layer } from "@/core/document/Layer";
 import { PixelDocument, validateCanvasDimensions } from "@/core/document/PixelDocument";
@@ -30,6 +31,7 @@ export interface SerializedProject {
   activeFrameIndex: number;
   activeLayerId: string;
   onionSkin: OnionSkinConfig;
+  assetContext?: AssetContextState;
   frames: SerializedFrame[];
   customPalettes?: CustomPalette[];
   savedAt: string;
@@ -77,6 +79,7 @@ export function serializeProject(
     activeFrameIndex: doc.activeFrameIndex,
     activeLayerId: doc.activeLayerId,
     onionSkin: { ...doc.onionSkin },
+    assetContext: { ...doc.assetContext },
     frames: doc.frames.map((frame) => ({
       id: frame.id,
       durationMs: frame.durationMs,
@@ -126,6 +129,12 @@ export function deserializeProject(raw: unknown): {
       prevFrames: data.onionSkin.prevFrames ?? 1,
       nextFrames: data.onionSkin.nextFrames ?? 1,
       opacity: data.onionSkin.opacity ?? 0.3,
+    };
+  }
+  if (data.assetContext && typeof data.assetContext.assetTypeId === "string") {
+    doc.assetContext = {
+      assetTypeId: data.assetContext.assetTypeId,
+      preferredMaterialId: data.assetContext.preferredMaterialId ?? null,
     };
   }
 

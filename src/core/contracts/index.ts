@@ -1,4 +1,11 @@
 import type { DirtyRect, RGBA, SelectionRect, ShapeFillMode, ToolId } from "@/types/editor";
+import type {
+  AssetContextProfile,
+  AssetContextState,
+  AssetTypeId,
+  MaterialPreset,
+  MaterialPresetId,
+} from "@/types/assetContext";
 import type { PixelDocument } from "@/core/document/PixelDocument";
 import type { PixelBuffer } from "@/core/document/PixelBuffer";
 import type { HistoryManager } from "@/core/history/HistoryManager";
@@ -38,6 +45,7 @@ export interface IToolContext {
   setPreviewBuffer(buffer: PixelBuffer | null, replaceActiveLayer?: boolean): void;
   markDirty(rect?: DirtyRect): void;
   notifyDocumentChanged(): void;
+  getAssetContext(): AssetContextProfile;
 }
 
 export interface ITool {
@@ -51,19 +59,22 @@ export interface ITool {
   onCancel?(ctx: IToolContext): void;
 }
 
-/** Forward-compatible contract for Phase 3 Dynamic Asset Context */
-export interface IAssetContextProfile {
-  readonly id: string;
-  readonly label: string;
-  readonly suggestedPalettes: readonly string[][];
-}
-
+/** Shared read-only contract for Dynamic Asset Context consumed by Smart Fill, Lighting, and Color tools */
 export interface IAssetContextProvider {
-  getActiveProfile(): IAssetContextProfile;
+  getState(): AssetContextState;
+  getActiveProfile(): AssetContextProfile;
+  getProfile(id: AssetTypeId): AssetContextProfile | undefined;
+  listProfiles(): readonly AssetContextProfile[];
+  getMaterialPreset(id: MaterialPresetId): MaterialPreset | undefined;
+  getRecommendedMaterials(): readonly MaterialPreset[];
 }
 
 /** Forward-compatible contract for Phase 5 Non-destructive Lighting */
 export interface ILightingPipeline {
   readonly enabled: boolean;
-  process(source: PixelBuffer, target: PixelBuffer): void;
+  process(
+    source: PixelBuffer,
+    target: PixelBuffer,
+    contextProfile?: AssetContextProfile,
+  ): void;
 }

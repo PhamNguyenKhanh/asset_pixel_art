@@ -1,3 +1,5 @@
+import type { AssetContextState } from "@/types/assetContext";
+
 export type ToolId =
   | "pencil"
   | "eraser"
@@ -113,6 +115,7 @@ export interface DocumentMetadataSnapshot {
   fps: number;
   onionSkin: OnionSkinConfig;
   selection: SelectionRect | null;
+  assetContext: AssetContextState;
   canUndo: boolean;
   canRedo: boolean;
   undoCount: number;

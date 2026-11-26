@@ -24,6 +24,8 @@ export function ColorPanel() {
   const primaryColor = useEditorStore((s) => s.primaryColor);
   const recentColors = useEditorStore((s) => s.recentColors);
   const customPalettes = useEditorStore((s) => s.customPalettes);
+  const assetTypeId = useEditorStore((s) => s.documentMeta.assetContext.assetTypeId);
+  const activeContextProfile = service.getAssetContextProfile();
   const addCustomPalette = useEditorStore((s) => s.addCustomPalette);
   const deleteCustomPalette = useEditorStore((s) => s.deleteCustomPalette);
   const addColorToCustomPalette = useEditorStore((s) => s.addColorToCustomPalette);
@@ -365,6 +367,43 @@ export function ColorPanel() {
       </section>
 
       <div className="h-px bg-white/8" />
+
+      {/* Context-Aware Suggested Colors (shown whenever a specific Asset Context is active) */}
+      {assetTypeId !== "custom" && activeContextProfile.suggestedPalettes[0] && (
+        <>
+          <section className="flex flex-col gap-1.5" data-testid="color-panel-context-suggestions">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+                {activeContextProfile.label} Suggestions
+              </h2>
+              <span className="text-[10px] text-zinc-500">
+                {activeContextProfile.suggestedPalettes[0].name}
+              </span>
+            </div>
+            <div className="grid grid-cols-8 gap-1">
+              {activeContextProfile.suggestedPalettes[0].colors.map((hex) => {
+                const parsed = hexToRgba(hex);
+                if (!parsed) return null;
+                return (
+                  <button
+                    key={hex}
+                    type="button"
+                    title={`${hex} (${activeContextProfile.label} preset)`}
+                    onClick={() => applySwatch(parsed, false)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      applySwatch(parsed, true);
+                    }}
+                    className="h-5 w-full rounded border border-amber-400/30 transition-transform hover:scale-110 hover:border-amber-300 cursor-pointer"
+                    style={{ backgroundColor: hex }}
+                  />
+                );
+              })}
+            </div>
+          </section>
+          <div className="h-px bg-white/8" />
+        </>
+      )}
 
       {/* Default Studio Palette */}
       <section className="flex flex-col gap-1.5">

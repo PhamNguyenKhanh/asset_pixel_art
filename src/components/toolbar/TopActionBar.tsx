@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  Compass,
   Download,
   FilePlus2,
   Film,
@@ -43,10 +44,12 @@ export function TopActionBar({
   const showGrid = useEditorStore((s) => s.showGrid);
   const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
   const setRightPanelOpen = useEditorStore((s) => s.setRightPanelOpen);
+  const setInspectorTab = useEditorStore((s) => s.setInspectorTab);
   const timelineOpen = useEditorStore((s) => s.timelineOpen);
   const setTimelineOpen = useEditorStore((s) => s.setTimelineOpen);
 
   const zoomPercent = Math.round(zoom * 100);
+  const activeContextProfile = service.getAssetContextProfile();
 
   return (
     <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#181b22] px-3 select-none">
@@ -79,6 +82,29 @@ export function TopActionBar({
           >
             {docMeta.width}×{docMeta.height}
           </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                data-testid="context-pill-btn"
+                onClick={() => {
+                  setRightPanelOpen(true);
+                  setInspectorTab("context");
+                }}
+                className={`flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium transition-colors cursor-pointer ${
+                  activeContextProfile.id !== "custom"
+                    ? "border-amber-400/40 bg-amber-500/15 text-amber-300"
+                    : "border-white/10 bg-[#111318] text-zinc-400 hover:border-white/25 hover:text-zinc-200"
+                }`}
+              >
+                <Compass className="h-3 w-3" />
+                <span>{activeContextProfile.label}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Asset Context: {activeContextProfile.label} (Click to change)
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex items-center gap-1">

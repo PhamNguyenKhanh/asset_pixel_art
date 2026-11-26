@@ -14,6 +14,12 @@ import {
   type ShapeFillMode,
   type ToolId,
 } from "@/types/editor";
+import type {
+  AssetContextProfile,
+  AssetTypeId,
+  MaterialPreset,
+  MaterialPresetId,
+} from "@/types/assetContext";
 import type { ITool, IToolContext, PointerInputEvent } from "@/core/contracts";
 import { PixelBuffer } from "@/core/document/PixelBuffer";
 import { Frame } from "@/core/document/Frame";
@@ -46,6 +52,7 @@ import {
 import { createDefaultTools } from "@/modules/drawing-tools/createDefaultTools";
 import * as LayerService from "@/modules/layers/LayerService";
 import * as FrameService from "@/modules/animation/FrameService";
+import { AssetContextManager } from "@/modules/asset-context/AssetContextManager";
 import {
   deserializeProject,
   serializeProject,
@@ -76,6 +83,7 @@ export class EditorApplicationService {
   readonly viewport: ViewportTransform;
   readonly history: HistoryManager;
   readonly renderer: RenderingEngine;
+  readonly assetContext: AssetContextManager;
 
   private readonly tools: Record<ToolId, ITool>;
   private readonly input: InputController;
@@ -105,6 +113,8 @@ export class EditorApplicationService {
     this.viewport = new ViewportTransform();
     this.history = new HistoryManager();
     this.renderer = new RenderingEngine(this.document, this.viewport);
+    this.assetContext = new AssetContextManager();
+    this.document.assetContext = this.assetContext.getState();
     this.tools = createDefaultTools();
 
     this.input = new InputController(this.viewport, {
@@ -181,6 +191,7 @@ export class EditorApplicationService {
       fps: this.document.fps,
       onionSkin: { ...this.document.onionSkin },
       selection: this.getSelection(),
+      assetContext: this.assetContext.getState(),
       canUndo: this.history.canUndo,
       canRedo: this.history.canRedo,
       undoCount: this.history.undoCount,
@@ -330,13 +341,70 @@ export class EditorApplicationService {
     this.bumpRevisionAndEmit();
   }
 
-  createNewCanvas(width: number, height: number, name?: string): void {
+  createNewCanvas(
+    width: number,
+    height: number,
+    name?: string,
+    assetTypeId?: AssetTypeId,
+  ): void {
     this.getActiveTool().onCancel?.(this.createToolContext());
     this.document.reset(width, height, name ?? "Untitled Sprite");
+    this.assetContext.setAssetType(assetTypeId ?? "custom");
+    this.document.assetContext = this.assetContext.getState();
     this.history.clear();
     this.renderer.setDocument(this.document);
     this.fitViewport();
     this.bumpRevisionAndEmit();
+  }
+
+  // ---- Dynamic Asset Context ----
+
+  getAssetContextProfile(): AssetContextProfile {
+    return this.assetContext.getActiveProfile();
+  }
+
+  listAssetContextProfiles(): readonly AssetContextProfile[] {
+    return this.assetContext.listProfiles();
+  }
+
+  getRecommendedMaterials(): readonly MaterialPreset[] {
+    return this.assetContext.getRecommendedMaterials();
+  }
+
+  listAllMaterials(): readonly MaterialPreset[] {
+    return this.assetContext.listMaterials();
+  }
+
+  setAssetType(assetTypeId: AssetTypeId): AssetContextProfile {
+    const profile = this.assetContext.setAssetType(assetTypeId);
+    this.document.assetContext = this.assetContext.getState();
+    this.bumpRevisionAndEmit();
+    return profile;
+  }
+
+  setPreferredMaterial(materialId: MaterialPresetId | null): void {
+    this.assetContext.setPreferredMaterial(materialId);
+    this.document.assetContext = this.assetContext.getState();
+    this.bumpRevisionAndEmit();
+  }
+
+  /**
+   * Non-destructive animation helper: sets recommended FPS and appends empty frames
+   * only if the sprite currently has fewer frames than the preset suggests.
+   */
+  applyAnimationPreset(presetId: string): boolean {
+    const profile = this.assetContext.getActiveProfile();
+    const preset = profile.animationHints.find((h) => h.id === presetId);
+    if (!preset) return false;
+
+    return this.runStructuralMutation(`Apply Animation Preset (${preset.name})`, () => {
+      FrameService.setDocumentFps(this.document, preset.fps, true);
+      while (this.document.frames.length < preset.frameCount) {
+        FrameService.addFrame(this.document, this.document.frames.length - 1);
+      }
+      this.document.setActiveFrameIndex(0);
+      return true;
+    });
   }
 
   // ---- Selection & Clipboard ----
@@ -814,6 +882,8 @@ export class EditorApplicationService {
     this.document.height = loaded.height;
     this.document.fps = loaded.fps;
     this.document.onionSkin = { ...loaded.onionSkin };
+    this.assetContext.restoreState(loaded.assetContext);
+    this.document.assetContext = this.assetContext.getState();
     this.document.frames = loaded.frames;
     this.document.activeFrameIndex = loaded.activeFrameIndex;
     this.document.activeLayerId = loaded.activeLayerId;
@@ -942,6 +1012,7 @@ export class EditorApplicationService {
         this.renderer.setPreviewBuffer(buffer, replaceActiveLayer),
       markDirty: (rect?: DirtyRect) => this.renderer.markPixelsDirty(rect),
       notifyDocumentChanged: () => this.bumpRevisionAndEmit(),
+      getAssetContext: () => this.assetContext.getActiveProfile(),
     };
   }
 

@@ -11,7 +11,7 @@ import {
   type ShapeFillMode,
   type ToolId,
 } from "@/types/editor";
-import { colorsEqual } from "@/core/image-processing/color";
+import { colorsEqual, hexToRgba } from "@/core/image-processing/color";
 import {
   addColorToPalette,
   createCustomPalette,
@@ -20,6 +20,8 @@ import {
 } from "@/modules/color-management/PaletteManager";
 
 const MAX_RECENT_COLORS = 12;
+
+export type InspectorTab = "colors" | "layers" | "context";
 
 export interface EditorUIState {
   activeTool: ToolId;
@@ -33,6 +35,7 @@ export interface EditorUIState {
   showGrid: boolean;
   cursorPixel: Point | null;
   rightPanelOpen: boolean;
+  inspectorTab: InspectorTab;
   timelineOpen: boolean;
   isPlaying: boolean;
   lastSavedAt: string | null;
@@ -47,6 +50,7 @@ export interface EditorUIState {
   recordRecentColor: (color: RGBA) => void;
   setCustomPalettes: (palettes: CustomPalette[]) => void;
   addCustomPalette: (name: string) => void;
+  importNamedPalette: (name: string, hexColors: readonly string[]) => void;
   deleteCustomPalette: (id: string) => void;
   addColorToCustomPalette: (paletteId: string, color: RGBA) => void;
   removeColorFromCustomPalette: (paletteId: string, index: number) => void;
@@ -54,6 +58,7 @@ export interface EditorUIState {
   setShowGrid: (show: boolean) => void;
   setCursorPixel: (pixel: Point | null) => void;
   setRightPanelOpen: (open: boolean) => void;
+  setInspectorTab: (tab: InspectorTab) => void;
   setTimelineOpen: (open: boolean) => void;
   setIsPlaying: (playing: boolean) => void;
   setLastSavedAt: (iso: string | null) => void;
@@ -75,6 +80,7 @@ export const useEditorStore = create<EditorUIState>((set) => ({
   showGrid: true,
   cursorPixel: null,
   rightPanelOpen: true,
+  inspectorTab: "colors",
   timelineOpen: true,
   isPlaying: false,
   lastSavedAt: null,
@@ -92,6 +98,7 @@ export const useEditorStore = create<EditorUIState>((set) => ({
     fps: DEFAULT_FPS,
     onionSkin: { enabled: false, prevFrames: 1, nextFrames: 1, opacity: 0.3 },
     selection: null,
+    assetContext: { assetTypeId: "custom", preferredMaterialId: "wood" },
     canUndo: false,
     canRedo: false,
     undoCount: 0,
@@ -124,6 +131,16 @@ export const useEditorStore = create<EditorUIState>((set) => ({
   addCustomPalette: (name) =>
     set((state) => {
       const next = [...state.customPalettes, createCustomPalette(name, [state.primaryColor])];
+      saveCustomPalettes(next);
+      return { customPalettes: next };
+    }),
+  importNamedPalette: (name, hexColors) =>
+    set((state) => {
+      const parsed = hexColors
+        .map((hex) => hexToRgba(hex))
+        .filter((c): c is RGBA => c !== null);
+      if (parsed.length === 0) return state;
+      const next = [...state.customPalettes, createCustomPalette(name, parsed)];
       saveCustomPalettes(next);
       return { customPalettes: next };
     }),
@@ -162,6 +179,7 @@ export const useEditorStore = create<EditorUIState>((set) => ({
       return { cursorPixel };
     }),
   setRightPanelOpen: (rightPanelOpen) => set({ rightPanelOpen }),
+  setInspectorTab: (inspectorTab) => set({ inspectorTab }),
   setTimelineOpen: (timelineOpen) => set({ timelineOpen }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   setLastSavedAt: (lastSavedAt) => set({ lastSavedAt }),

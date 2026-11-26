@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, Lock, Unlock } from "lucide-react";
 import { CANVAS_LIMITS, CANVAS_PRESETS } from "@/types/editor";
+import type { AssetTypeId } from "@/types/assetContext";
 import { validateCanvasDimensions } from "@/core/document/PixelDocument";
 import { useEditorService } from "@/hooks/EditorContext";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,10 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
   const [widthInput, setWidthInput] = useState(String(CANVAS_LIMITS.DEFAULT_SIZE));
   const [heightInput, setHeightInput] = useState(String(CANVAS_LIMITS.DEFAULT_SIZE));
   const [lockSquare, setLockSquare] = useState(true);
+  const [selectedAssetType, setSelectedAssetType] = useState<AssetTypeId>("custom");
+
+  const contextProfiles = service.listAssetContextProfiles();
+  const selectedProfile = service.assetContext.getProfile(selectedAssetType);
 
   const width = Number(widthInput);
   const height = Number(heightInput);
@@ -54,7 +59,12 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validation.valid) return;
-    service.createNewCanvas(width, height, name.trim() || "Untitled Sprite");
+    service.createNewCanvas(
+      width,
+      height,
+      name.trim() || "Untitled Sprite",
+      selectedAssetType,
+    );
     onOpenChange(false);
   };
 
@@ -81,6 +91,39 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
               onChange={(e) => setName(e.target.value)}
               placeholder="Untitled Sprite"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-300">
+                Asset Type <span className="font-normal text-zinc-500">(optional)</span>
+              </span>
+              {selectedProfile && selectedProfile.id !== "custom" && (
+                <span className="text-[10px] text-amber-300/80">
+                  Suggested: {selectedProfile.recommendedSizes.join(" / ")}px
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {contextProfiles.map((profile) => {
+                const active = selectedAssetType === profile.id;
+                return (
+                  <button
+                    key={profile.id}
+                    type="button"
+                    data-testid={`new-canvas-context-${profile.id}`}
+                    onClick={() => setSelectedAssetType(profile.id)}
+                    className={`rounded border px-2 py-1 text-[11px] transition-colors cursor-pointer ${
+                      active
+                        ? "border-amber-400 bg-amber-500/20 text-amber-300"
+                        : "border-white/10 bg-[#13151b] text-zinc-400 hover:border-white/25 hover:text-zinc-200"
+                    }`}
+                  >
+                    {profile.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">

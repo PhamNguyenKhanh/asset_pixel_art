@@ -10,13 +10,18 @@ import {
   FlipVertical2,
   Grid3x3,
   Keyboard,
+  LayoutGrid,
   Maximize2,
   PanelRightClose,
   PanelRightOpen,
   Redo2,
+  RefreshCw,
   RotateCcw,
   RotateCw,
   Scaling,
+  Sparkles,
+  SplitSquareHorizontal,
+  SplitSquareVertical,
   Sun,
   Undo2,
   Upload,
@@ -35,6 +40,8 @@ interface TopActionBarProps {
   onOpenImport: () => void;
   onOpenExport: () => void;
   onOpenShortcuts: () => void;
+  onOpenAutoOutline: () => void;
+  onOpenColorReplace: () => void;
 }
 
 export function TopActionBar({
@@ -43,11 +50,15 @@ export function TopActionBar({
   onOpenImport,
   onOpenExport,
   onOpenShortcuts,
+  onOpenAutoOutline,
+  onOpenColorReplace,
 }: TopActionBarProps) {
   const service = useEditorService();
   const docMeta = useEditorStore((s) => s.documentMeta);
   const zoom = useEditorStore((s) => s.zoom);
   const showGrid = useEditorStore((s) => s.showGrid);
+  const symmetry = useEditorStore((s) => s.symmetry);
+  const tileMode = useEditorStore((s) => s.tileMode);
   const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
   const setRightPanelOpen = useEditorStore((s) => s.setRightPanelOpen);
   const setInspectorTab = useEditorStore((s) => s.setInspectorTab);
@@ -57,6 +68,9 @@ export function TopActionBar({
 
   const zoomPercent = Math.round(zoom * 100);
   const activeContextProfile = service.getAssetContextProfile();
+  const isTileContextSuggested =
+    docMeta.assetContext.assetTypeId === "environment" ||
+    docMeta.assetContext.assetTypeId === "building";
 
   const handleResetLocalDb = async () => {
     const confirmed = window.confirm(
@@ -376,6 +390,119 @@ export function TopActionBar({
           </TooltipTrigger>
           <TooltipContent>Bật/tắt lưới pixel (G)</TooltipContent>
         </Tooltip>
+
+        <div className="mx-1 h-4 w-px bg-white/10" />
+
+        {/* Công cụ Artist chuyên sâu: Đối xứng X/Y, Lặp gạch 3×3, Auto-Outline, Đổi màu */}
+        <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="tool"
+                size="icon"
+                data-active={symmetry.x}
+                onClick={() => service.toggleSymmetryX()}
+                aria-label="Vẽ đối xứng ngang X"
+                data-testid="symmetry-x-btn"
+                className="relative h-7 w-7"
+              >
+                <SplitSquareHorizontal className="h-3.5 w-3.5" />
+                <span className="absolute bottom-0 right-0.5 font-mono text-[8px] font-bold">
+                  X
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Đối xứng ngang X ({symmetry.x ? "Đang bật" : "Đang tắt"} • Shift+X)
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="tool"
+                size="icon"
+                data-active={symmetry.y}
+                onClick={() => service.toggleSymmetryY()}
+                aria-label="Vẽ đối xứng dọc Y"
+                data-testid="symmetry-y-btn"
+                className="relative h-7 w-7"
+              >
+                <SplitSquareVertical className="h-3.5 w-3.5" />
+                <span className="absolute bottom-0 right-0.5 font-mono text-[8px] font-bold">
+                  Y
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Đối xứng dọc Y ({symmetry.y ? "Đang bật" : "Đang tắt"} • Shift+Y)
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="tool"
+                size="icon"
+                data-active={tileMode}
+                onClick={() => service.toggleTileMode()}
+                aria-label="Chế độ lặp gạch liền mạch 3×3"
+                data-testid="tile-mode-btn"
+                className={`relative h-7 w-7 ${
+                  isTileContextSuggested && !tileMode
+                    ? "ring-1 ring-emerald-400/60 text-emerald-300"
+                    : ""
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                {isTileContextSuggested && !tileMode && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400"
+                  />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Lặp gạch liền mạch 3×3 ({tileMode ? "Đang bật" : "Đang tắt"} • Shift+T)
+              {isTileContextSuggested ? " — Gợi ý cho Tilemap" : ""}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={onOpenAutoOutline}
+                aria-label="Viền tự động / Sel-Out"
+                data-testid="auto-outline-btn"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Tạo viền tự động / Sel-Out (1px)</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={onOpenColorReplace}
+                aria-label="Đổi màu hàng loạt"
+                data-testid="color-replace-btn"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-sky-300" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Đổi màu hàng loạt (Color Replace / Recolor Swap)</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Phải: Phím tắt & Đóng/mở bảng */}

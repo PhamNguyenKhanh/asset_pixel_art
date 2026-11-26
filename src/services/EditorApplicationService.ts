@@ -2,16 +2,21 @@ import {
   CANVAS_LIMITS,
   MAX_BRUSH_SIZE,
   MIN_BRUSH_SIZE,
+  type AutoOutlineOptions,
+  type ColorReplaceOptions,
+  type ColorReplaceScope,
   type CustomPalette,
   type DirtyRect,
   type DocumentMetadataSnapshot,
   type OnionSkinConfig,
+  type PaletteColorUsage,
   type Point,
   type ResizeAnchor,
   type ResizeMode,
   type RGBA,
   type SelectionRect,
   type ShapeFillMode,
+  type SymmetryConfig,
   type ToolId,
 } from "@/types/editor";
 import type {
@@ -49,6 +54,13 @@ import { InputController } from "@/core/input/InputController";
 import { ShortcutManager } from "@/core/input/ShortcutManager";
 import { TRANSPARENT_PACKED } from "@/core/image-processing/color";
 import { bresenhamLine, getSquareBrushOffsets } from "@/core/image-processing/bresenham";
+import { computeAutoOutlineBuffer } from "@/core/image-processing/autoOutline";
+import {
+  countMatchingPixels,
+  extractPaletteColors,
+  replaceColorInBuffer,
+} from "@/core/image-processing/colorReplace";
+import { wrapCoord } from "@/core/image-processing/symmetry";
 import {
   clampSelectionRect,
   compositeLayers,
@@ -81,6 +93,9 @@ export interface EditorServiceCallbacks {
   onActiveToolChange?: (tool: ToolId) => void;
   onBrushSizeChange?: (size: number) => void;
   onShapeFillModeChange?: (mode: ShapeFillMode) => void;
+  onSymmetryChange?: (symmetry: SymmetryConfig) => void;
+  onPixelPerfectChange?: (enabled: boolean) => void;
+  onTileModeChange?: (enabled: boolean) => void;
   onSmartFillConfigChange?: (config: SmartFillConfig) => void;
   onSmartFillPreviewChange?: (summary: SmartFillPreviewSummary) => void;
   onLightingConfigChange?: (config: LightingConfig) => void;
@@ -116,6 +131,9 @@ export class EditorApplicationService {
   private activeToolId: ToolId = "pencil";
   private brushSize = 1;
   private shapeFillMode: ShapeFillMode = "outline";
+  private symmetry: SymmetryConfig = { x: false, y: false };
+  private pixelPerfect = false;
+  private tileMode = false;
   private smartFillConfig: SmartFillConfig = { ...DEFAULT_SMART_FILL_CONFIG };
   private pendingSmartFill: {
     frameId: string;
@@ -192,6 +210,18 @@ export class EditorApplicationService {
 
   getShapeFillMode(): ShapeFillMode {
     return this.shapeFillMode;
+  }
+
+  getSymmetry(): SymmetryConfig {
+    return { ...this.symmetry };
+  }
+
+  getPixelPerfect(): boolean {
+    return this.pixelPerfect;
+  }
+
+  getTileMode(): boolean {
+    return this.tileMode;
   }
 
   getPrimaryColor(): RGBA {
@@ -284,6 +314,8 @@ export class EditorApplicationService {
   ): void {
     this.renderer.attach(displayCanvas, overlayCanvas);
     this.renderer.setShowGrid(this.showGrid);
+    this.renderer.setSymmetry(this.symmetry);
+    this.renderer.setTileMode(this.tileMode);
     this.renderer.setSelection(this.document.selection);
     this.input.attach(container);
     this.shortcuts.attach();
@@ -339,6 +371,46 @@ export class EditorApplicationService {
     if (this.shapeFillMode === mode) return;
     this.shapeFillMode = mode;
     this.callbacks.onShapeFillModeChange?.(mode);
+  }
+
+  setSymmetry(partial: Partial<SymmetryConfig>): void {
+    const next: SymmetryConfig = {
+      x: partial.x ?? this.symmetry.x,
+      y: partial.y ?? this.symmetry.y,
+    };
+    if (next.x === this.symmetry.x && next.y === this.symmetry.y) return;
+    this.symmetry = next;
+    this.renderer.setSymmetry(next);
+    this.callbacks.onSymmetryChange?.(this.getSymmetry());
+  }
+
+  toggleSymmetryX(): void {
+    this.setSymmetry({ x: !this.symmetry.x });
+  }
+
+  toggleSymmetryY(): void {
+    this.setSymmetry({ y: !this.symmetry.y });
+  }
+
+  setPixelPerfect(enabled: boolean): void {
+    if (this.pixelPerfect === enabled) return;
+    this.pixelPerfect = enabled;
+    this.callbacks.onPixelPerfectChange?.(enabled);
+  }
+
+  togglePixelPerfect(): void {
+    this.setPixelPerfect(!this.pixelPerfect);
+  }
+
+  setTileMode(enabled: boolean): void {
+    if (this.tileMode === enabled) return;
+    this.tileMode = enabled;
+    this.renderer.setTileMode(enabled);
+    this.callbacks.onTileModeChange?.(enabled);
+  }
+
+  toggleTileMode(): void {
+    this.setTileMode(!this.tileMode);
   }
 
   setPrimaryColor(color: RGBA): void {
@@ -1252,6 +1324,150 @@ export class EditorApplicationService {
     });
   }
 
+  // ---- Auto-Outline / Sel-Out & Color Replace ----
+
+  applyAutoOutline(options: AutoOutlineOptions): boolean {
+    this.cancelSmartFillPreview();
+    const label =
+      options.mode === "sel-out" ? "Selective Outline (Sel-Out)" : "Auto-Outline";
+
+    if (options.scope === "current-layer" && !options.createSeparateLayer) {
+      const layer = this.document.getActiveLayer();
+      if (layer.locked || !layer.visible) return false;
+      const result = computeAutoOutlineBuffer(layer.buffer, options);
+      if (result.pixelCount === 0) return false;
+      return this.commitLayerBufferChange(label, result.merged);
+    }
+
+    const activeFrameIndex = this.document.activeFrameIndex;
+    const activeLayerId = this.document.activeLayerId;
+
+    return this.runStructuralMutation(label, () => {
+      const targetFrames =
+        options.scope === "all-frames"
+          ? this.document.frames
+          : [this.document.frames[activeFrameIndex]!];
+
+      // Pre-compute outlines before mutating layer list
+      const computed = targetFrames.map((frame) => {
+        const sourceBuf =
+          options.scope === "current-layer"
+            ? (frame.getLayerById(activeLayerId)?.buffer ??
+              compositeLayers(frame.layers, this.document.width, this.document.height))
+            : compositeLayers(frame.layers, this.document.width, this.document.height);
+        return {
+          frame,
+          result: computeAutoOutlineBuffer(sourceBuf, options),
+        };
+      });
+
+      const totalPixels = computed.reduce((sum, item) => sum + item.result.pixelCount, 0);
+      if (totalPixels === 0) return false;
+
+      if (options.createSeparateLayer) {
+        const outlineLayer = LayerService.addLayer(this.document, "Outline");
+        for (const item of computed) {
+          if (item.result.pixelCount === 0) continue;
+          const targetLayer = item.frame.getLayerById(outlineLayer.id);
+          if (targetLayer) {
+            targetLayer.buffer.data.set(item.result.outlineOnly.data);
+          }
+        }
+        return true;
+      }
+
+      let anyMutated = false;
+      for (const item of computed) {
+        if (item.result.pixelCount === 0) continue;
+        const targetLayer =
+          item.frame.getLayerById(activeLayerId) ??
+          item.frame.layers.find((l) => l.visible && !l.locked);
+        if (!targetLayer || targetLayer.locked || !targetLayer.visible) continue;
+
+        const outView = item.result.outlineOnly.view32;
+        const dstView = targetLayer.buffer.view32;
+        for (let i = 0; i < outView.length; i++) {
+          const outPacked = outView[i]!;
+          if (outPacked !== TRANSPARENT_PACKED && dstView[i] === TRANSPARENT_PACKED) {
+            dstView[i] = outPacked;
+            anyMutated = true;
+          }
+        }
+      }
+      return anyMutated;
+    });
+  }
+
+  private getScopeBuffers(scope: ColorReplaceScope): PixelBuffer[] {
+    if (scope === "current-layer") {
+      return [this.document.getActiveLayer().buffer];
+    }
+    if (scope === "current-frame") {
+      return this.document.getActiveFrame().layers.map((l) => l.buffer);
+    }
+    const buffers: PixelBuffer[] = [];
+    for (const frame of this.document.frames) {
+      for (const layer of frame.layers) {
+        buffers.push(layer.buffer);
+      }
+    }
+    return buffers;
+  }
+
+  getPaletteColorsForScope(scope: ColorReplaceScope = "current-frame"): PaletteColorUsage[] {
+    return extractPaletteColors(this.getScopeBuffers(scope));
+  }
+
+  countColorMatches(
+    sourceColor: RGBA,
+    tolerance: number,
+    scope: ColorReplaceScope,
+  ): number {
+    return countMatchingPixels(this.getScopeBuffers(scope), sourceColor, tolerance);
+  }
+
+  replaceColor(options: ColorReplaceOptions): number {
+    this.cancelSmartFillPreview();
+    const { sourceColor, targetColor, tolerance, scope } = options;
+
+    if (scope === "current-layer") {
+      const layer = this.document.getActiveLayer();
+      if (layer.locked || !layer.visible) return 0;
+      const res = replaceColorInBuffer(layer.buffer, sourceColor, targetColor, tolerance);
+      if (res.replacedCount === 0) return 0;
+      this.commitLayerBufferChange("Replace Color (Layer)", res.nextBuffer);
+      if (targetColor.a > 0) {
+        this.callbacks.onRecentColorRecorded?.({ ...targetColor });
+      }
+      return res.replacedCount;
+    }
+
+    let totalReplaced = 0;
+    const label =
+      scope === "all-frames" ? "Replace Color (All Frames)" : "Replace Color (Current Frame)";
+    const targetFrames =
+      scope === "all-frames" ? this.document.frames : [this.document.getActiveFrame()];
+
+    const mutated = this.runStructuralMutation(label, () => {
+      for (const frame of targetFrames) {
+        for (const layer of frame.layers) {
+          if (layer.locked) continue;
+          const res = replaceColorInBuffer(layer.buffer, sourceColor, targetColor, tolerance);
+          if (res.replacedCount > 0) {
+            layer.buffer.data.set(res.nextBuffer.data);
+            totalReplaced += res.replacedCount;
+          }
+        }
+      }
+      return totalReplaced > 0;
+    });
+
+    if (mutated && targetColor.a > 0) {
+      this.callbacks.onRecentColorRecorded?.({ ...targetColor });
+    }
+    return mutated ? totalReplaced : 0;
+  }
+
   // ---- Layer Management ----
 
   selectLayer(layerId: string): void {
@@ -1609,6 +1825,9 @@ export class EditorApplicationService {
       getSecondaryColor: () => this.getSecondaryColor(),
       getBrushSize: () => this.brushSize,
       getShapeFillMode: () => this.shapeFillMode,
+      getSymmetry: () => this.getSymmetry(),
+      getPixelPerfect: () => this.pixelPerfect,
+      getTileMode: () => this.tileMode,
       setPrimaryColor: (color) => this.setPrimaryColor(color),
       setSecondaryColor: (color) => this.setSecondaryColor(color),
       recordRecentColor: (color) => this.callbacks.onRecentColorRecorded?.({ ...color }),
@@ -1657,14 +1876,23 @@ export class EditorApplicationService {
   }
 
   private handleHoverPixelChange(pixel: Point | null): void {
-    const inBounds =
-      pixel !== null &&
-      pixel.x >= 0 &&
-      pixel.y >= 0 &&
-      pixel.x < this.document.width &&
-      pixel.y < this.document.height;
+    let next: Point | null = null;
+    if (pixel !== null) {
+      const w = this.document.width;
+      const h = this.document.height;
+      if (pixel.x >= 0 && pixel.y >= 0 && pixel.x < w && pixel.y < h) {
+        next = pixel;
+      } else if (
+        this.tileMode &&
+        pixel.x >= -w &&
+        pixel.y >= -h &&
+        pixel.x < w * 2 &&
+        pixel.y < h * 2
+      ) {
+        next = { x: wrapCoord(pixel.x, w), y: wrapCoord(pixel.y, h) };
+      }
+    }
 
-    const next = inBounds ? pixel : null;
     const changed =
       this.hoverPixel?.x !== next?.x || this.hoverPixel?.y !== next?.y;
 
@@ -1742,6 +1970,9 @@ export class EditorApplicationService {
     this.callbacks.onActiveToolChange?.(this.activeToolId);
     this.callbacks.onBrushSizeChange?.(this.brushSize);
     this.callbacks.onShapeFillModeChange?.(this.shapeFillMode);
+    this.callbacks.onSymmetryChange?.(this.getSymmetry());
+    this.callbacks.onPixelPerfectChange?.(this.pixelPerfect);
+    this.callbacks.onTileModeChange?.(this.tileMode);
     this.callbacks.onSmartFillConfigChange?.(this.getSmartFillConfig());
     this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
     this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
@@ -1765,6 +1996,10 @@ export class EditorApplicationService {
       { key: "m", action: () => this.setTool("select"), description: "Select Tool" },
       { key: "v", action: () => this.setTool("move"), description: "Move Tool" },
       { key: "x", action: () => this.swapColors(), description: "Swap Colors" },
+      { key: "x", shift: true, action: () => this.toggleSymmetryX(), description: "Toggle Symmetry X" },
+      { key: "y", shift: true, action: () => this.toggleSymmetryY(), description: "Toggle Symmetry Y" },
+      { key: "p", shift: true, action: () => this.togglePixelPerfect(), description: "Toggle Pixel-Perfect Stroke" },
+      { key: "t", shift: true, action: () => this.toggleTileMode(), description: "Toggle Seamless Tile Mode" },
       { key: "g", action: () => this.toggleGrid(), description: "Toggle Pixel Grid" },
       { key: "[", action: () => this.setBrushSize(this.brushSize - 1), description: "Decrease Brush Size" },
       { key: "]", action: () => this.setBrushSize(this.brushSize + 1), description: "Increase Brush Size" },

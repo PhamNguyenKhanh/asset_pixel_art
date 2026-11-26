@@ -9,6 +9,7 @@ import {
   type Point,
   type RGBA,
   type ShapeFillMode,
+  type SymmetryConfig,
   type ToolId,
 } from "@/types/editor";
 import {
@@ -37,6 +38,9 @@ export interface EditorUIState {
   activeTool: ToolId;
   brushSize: number;
   shapeFillMode: ShapeFillMode;
+  symmetry: SymmetryConfig;
+  pixelPerfect: boolean;
+  tileMode: boolean;
   smartFillConfig: SmartFillConfig;
   smartFillPreview: SmartFillPreviewSummary;
   lightingConfig: LightingConfig;
@@ -58,6 +62,9 @@ export interface EditorUIState {
   setActiveTool: (tool: ToolId) => void;
   setBrushSize: (size: number) => void;
   setShapeFillMode: (mode: ShapeFillMode) => void;
+  setSymmetry: (symmetry: SymmetryConfig) => void;
+  setPixelPerfect: (enabled: boolean) => void;
+  setTileMode: (enabled: boolean) => void;
   setSmartFillConfig: (config: SmartFillConfig) => void;
   setSmartFillPreview: (summary: SmartFillPreviewSummary) => void;
   setLightingConfig: (config: LightingConfig) => void;
@@ -90,6 +97,9 @@ export const useEditorStore = create<EditorUIState>((set) => ({
   activeTool: "pencil",
   brushSize: 1,
   shapeFillMode: "outline",
+  symmetry: { x: false, y: false },
+  pixelPerfect: false,
+  tileMode: false,
   smartFillConfig: { ...DEFAULT_SMART_FILL_CONFIG },
   smartFillPreview: {
     active: false,
@@ -142,6 +152,9 @@ export const useEditorStore = create<EditorUIState>((set) => ({
       brushSize: Math.max(MIN_BRUSH_SIZE, Math.min(MAX_BRUSH_SIZE, Math.round(size))),
     }),
   setShapeFillMode: (shapeFillMode) => set({ shapeFillMode }),
+  setSymmetry: (symmetry) => set({ symmetry: { ...symmetry } }),
+  setPixelPerfect: (pixelPerfect) => set({ pixelPerfect }),
+  setTileMode: (tileMode) => set({ tileMode }),
   setSmartFillConfig: (smartFillConfig) => set({ smartFillConfig: { ...smartFillConfig } }),
   setSmartFillPreview: (smartFillPreview) => set({ smartFillPreview: { ...smartFillPreview } }),
   setLightingConfig: (lightingConfig) =>

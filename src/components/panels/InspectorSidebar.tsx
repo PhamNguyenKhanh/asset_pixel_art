@@ -10,7 +10,11 @@ import { LightingPanel } from "@/components/panels/LightingPanel";
 import { LayerPanel } from "@/components/panels/LayerPanel";
 import { ContextPanel } from "@/components/panels/ContextPanel";
 
-export function InspectorSidebar() {
+interface InspectorSidebarProps {
+  onOpenColorReplace?: () => void;
+}
+
+export function InspectorSidebar({ onOpenColorReplace }: InspectorSidebarProps) {
   const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
   const inspectorTab = useEditorStore((s) => s.inspectorTab);
   const setInspectorTab = useEditorStore((s) => s.setInspectorTab);
@@ -123,7 +127,7 @@ export function InspectorSidebar() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
-        {inspectorTab === "colors" && <ColorPanel />}
+        {inspectorTab === "colors" && <ColorPanel onOpenColorReplace={onOpenColorReplace} />}
         {inspectorTab === "fill" && <SmartFillPanel />}
         {inspectorTab === "lighting" && <LightingPanel />}
         {inspectorTab === "layers" && <LayerPanel />}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, RefreshCw, Trash2, X } from "lucide-react";
 import type { RGBA } from "@/types/editor";
 import { useEditorService } from "@/hooks/EditorContext";
 import { useEditorStore } from "@/stores/editorStore";
@@ -19,7 +19,11 @@ import { Input } from "@/components/ui/input";
 
 type ColorModeTab = "rgb" | "hsv";
 
-export function ColorPanel() {
+interface ColorPanelProps {
+  onOpenColorReplace?: () => void;
+}
+
+export function ColorPanel({ onOpenColorReplace }: ColorPanelProps) {
   const service = useEditorService();
   const primaryColor = useEditorStore((s) => s.primaryColor);
   const recentColors = useEditorStore((s) => s.recentColors);
@@ -144,6 +148,19 @@ export function ColorPanel() {
             Bảng chọn màu
           </h2>
           <div className="flex items-center gap-1.5">
+            {onOpenColorReplace && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                data-testid="color-panel-replace-btn"
+                onClick={onOpenColorReplace}
+                className="h-5 gap-1 px-1.5 text-[10px]"
+              >
+                <RefreshCw className="h-2.5 w-2.5 text-sky-300" />
+                <span>Đổi màu</span>
+              </Button>
+            )}
             <div className="checkerboard-swatch h-4 w-7 overflow-hidden rounded border border-white/20">
               <div
                 className="h-full w-full"

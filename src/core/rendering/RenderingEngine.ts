@@ -1,4 +1,4 @@
-import type { DirtyRect, Point, RGBA, SelectionRect } from "@/types/editor";
+import type { DirtyRect, Point, RGBA, SelectionRect, SymmetryConfig } from "@/types/editor";
 import type { ILightingPipeline } from "@/core/contracts";
 import type { PixelDocument } from "@/core/document/PixelDocument";
 import { PixelBuffer } from "@/core/document/PixelBuffer";
@@ -6,6 +6,7 @@ import type { ViewportTransform } from "@/core/canvas/ViewportTransform";
 import { clampDirtyRect, getDirtyRectSize, mergeDirtyRects } from "@/core/canvas/dirtyRect";
 import { getSquareBrushOffsets } from "@/core/image-processing/bresenham";
 import { rgbaToCss } from "@/core/image-processing/color";
+import { expandSymmetryPoints } from "@/core/image-processing/symmetry";
 import { compositeLayers, compositeOverlayBuffer } from "@/core/image-processing/transforms";
 
 export interface CursorOverlayState {
@@ -58,6 +59,8 @@ export class RenderingEngine {
   private dpr = 1;
 
   private showGrid = true;
+  private symmetry: SymmetryConfig = { x: false, y: false };
+  private tileMode = false;
   private selection: SelectionRect | null = null;
   private cursorOverlay: CursorOverlayState = {
     pixel: null,
@@ -194,6 +197,19 @@ export class RenderingEngine {
   setShowGrid(show: boolean): void {
     if (this.showGrid === show) return;
     this.showGrid = show;
+    this.markOverlayDirty();
+  }
+
+  setSymmetry(symmetry: SymmetryConfig): void {
+    if (this.symmetry.x === symmetry.x && this.symmetry.y === symmetry.y) return;
+    this.symmetry = { ...symmetry };
+    this.markOverlayDirty();
+  }
+
+  setTileMode(enabled: boolean): void {
+    if (this.tileMode === enabled) return;
+    this.tileMode = enabled;
+    this.markViewportDirty();
     this.markOverlayDirty();
   }
 
@@ -459,10 +475,85 @@ export class RenderingEngine {
     const rw = Math.round(rect.width);
     const rh = Math.round(rect.height);
 
+    // Seamless Tile Mode: render 8 surrounding repeated tiles around the center canvas
+    if (this.tileMode && rw > 0 && rh > 0) {
+      const gridLeft = rx - rw;
+      const gridTop = ry - rh;
+      const gridW = rw * 3;
+      const gridH = rh * 3;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(gridLeft, gridTop, gridW, gridH);
+      ctx.clip();
+
+      const tStartX = Math.max(gridLeft, 0);
+      const tStartY = Math.max(gridTop, 0);
+      const tEndX = Math.min(gridLeft + gridW, this.cssWidth);
+      const tEndY = Math.min(gridTop + gridH, this.cssHeight);
+
+      if (tEndX > tStartX && tEndY > tStartY) {
+        ctx.fillStyle = "#1d2028";
+        ctx.fillRect(tStartX, tStartY, tEndX - tStartX, tEndY - tStartY);
+
+        ctx.fillStyle = "#252933";
+        const firstCol = Math.floor((tStartX - gridLeft) / CHECKER_TILE_PX);
+        const lastCol = Math.ceil((tEndX - gridLeft) / CHECKER_TILE_PX);
+        const firstRow = Math.floor((tStartY - gridTop) / CHECKER_TILE_PX);
+        const lastRow = Math.ceil((tEndY - gridTop) / CHECKER_TILE_PX);
+
+        for (let row = firstRow; row < lastRow; row++) {
+          for (let col = firstCol; col < lastCol; col++) {
+            if ((row + col) % 2 === 0) {
+              ctx.fillRect(
+                gridLeft + col * CHECKER_TILE_PX,
+                gridTop + row * CHECKER_TILE_PX,
+                CHECKER_TILE_PX,
+                CHECKER_TILE_PX,
+              );
+            }
+          }
+        }
+      }
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.globalAlpha = 0.85;
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          if (ox === 0 && oy === 0) continue;
+          const tx = rx + ox * rw;
+          const ty = ry + oy * rh;
+          if (tx + rw < 0 || ty + rh < 0 || tx > this.cssWidth || ty > this.cssHeight) {
+            continue;
+          }
+          ctx.drawImage(
+            this.compositeCanvas,
+            0,
+            0,
+            this.document.width,
+            this.document.height,
+            tx,
+            ty,
+            rw,
+            rh,
+          );
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Subtle outer frame for the 3x3 tiled region
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(gridLeft + 0.5, gridTop + 0.5, gridW - 1, gridH - 1);
+      ctx.restore();
+    }
+
     ctx.save();
-    ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
-    ctx.shadowBlur = 24;
-    ctx.shadowOffsetY = 6;
+    if (!this.tileMode) {
+      ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+      ctx.shadowBlur = 24;
+      ctx.shadowOffsetY = 6;
+    }
     ctx.fillStyle = "#1b1d24";
     ctx.fillRect(rx, ry, rw, rh);
     ctx.restore();
@@ -559,6 +650,45 @@ export class RenderingEngine {
       ctx.stroke();
     }
 
+    // 1b. Seamless Tile Center Boundary Highlight
+    if (this.tileMode) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(52, 211, 153, 0.75)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(
+        Math.round(rect.x) + 0.5,
+        Math.round(rect.y) + 0.5,
+        Math.round(rect.width) - 1,
+        Math.round(rect.height) - 1,
+      );
+      ctx.restore();
+    }
+
+    // 1c. Symmetry Center Axis Guides (X = vertical center line, Y = horizontal center line)
+    if (this.symmetry.x || this.symmetry.y) {
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      if (this.symmetry.x) {
+        const midX = Math.round(rect.x + rect.width / 2) + 0.5;
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+        ctx.beginPath();
+        ctx.moveTo(midX, Math.max(0, rect.y));
+        ctx.lineTo(midX, Math.min(this.cssHeight, rect.y + rect.height));
+        ctx.stroke();
+      }
+      if (this.symmetry.y) {
+        const midY = Math.round(rect.y + rect.height / 2) + 0.5;
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.8)";
+        ctx.beginPath();
+        ctx.moveTo(Math.max(0, rect.x), midY);
+        ctx.lineTo(Math.min(this.cssWidth, rect.x + rect.width), midY);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     // 2. Selection Box Overlay (Crisp dual-dash outline)
     if (this.selection && this.selection.width > 0 && this.selection.height > 0) {
       const sx = Math.round(rect.x + this.selection.x * zoom) + 0.5;
@@ -580,7 +710,7 @@ export class RenderingEngine {
       ctx.restore();
     }
 
-    // 3. Pixel-aligned Brush Cursor Preview
+    // 3. Pixel-aligned Brush Cursor Preview (including Symmetry mirror ghosts)
     const { pixel, brushSize, color, isEraser } = this.cursorOverlay;
     if (
       pixel &&
@@ -592,30 +722,52 @@ export class RenderingEngine {
       const offsets = getSquareBrushOffsets(brushSize);
       const first = offsets[0]!;
       const last = offsets[offsets.length - 1]!;
+      const cursorTargets = expandSymmetryPoints(
+        pixel.x,
+        pixel.y,
+        this.document.width,
+        this.document.height,
+        this.symmetry,
+        this.tileMode,
+      );
 
-      const minPx = Math.max(0, pixel.x + first.x);
-      const minPy = Math.max(0, pixel.y + first.y);
-      const maxPx = Math.min(this.document.width - 1, pixel.x + last.x);
-      const maxPy = Math.min(this.document.height - 1, pixel.y + last.y);
+      for (let t = 0; t < cursorTargets.length; t++) {
+        const targetPt = cursorTargets[t]!;
+        const isPrimaryCursor = t === 0;
+        const minPx = Math.max(0, targetPt.x + first.x);
+        const minPy = Math.max(0, targetPt.y + first.y);
+        const maxPx = Math.min(this.document.width - 1, targetPt.x + last.x);
+        const maxPy = Math.min(this.document.height - 1, targetPt.y + last.y);
 
-      if (minPx <= maxPx && minPy <= maxPy) {
-        const sx = Math.round(rect.x + minPx * zoom);
-        const sy = Math.round(rect.y + minPy * zoom);
-        const sw = Math.max(1, Math.round((maxPx - minPx + 1) * zoom));
-        const sh = Math.max(1, Math.round((maxPy - minPy + 1) * zoom));
+        if (minPx <= maxPx && minPy <= maxPy) {
+          const sx = Math.round(rect.x + minPx * zoom);
+          const sy = Math.round(rect.y + minPy * zoom);
+          const sw = Math.max(1, Math.round((maxPx - minPx + 1) * zoom));
+          const sh = Math.max(1, Math.round((maxPy - minPy + 1) * zoom));
 
-        if (!isEraser && color && color.a > 0) {
-          ctx.fillStyle = rgbaToCss({ ...color, a: Math.round(color.a * 0.45) });
-          ctx.fillRect(sx, sy, sw, sh);
+          ctx.save();
+          if (!isPrimaryCursor) {
+            ctx.globalAlpha = 0.6;
+          }
+
+          if (!isEraser && color && color.a > 0) {
+            ctx.fillStyle = rgbaToCss({ ...color, a: Math.round(color.a * 0.45) });
+            ctx.fillRect(sx, sy, sw, sh);
+          }
+
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+
+          ctx.strokeStyle = isEraser
+            ? "#fb7185"
+            : isPrimaryCursor
+              ? "#fbbf24"
+              : "#38bdf8";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+          ctx.restore();
         }
-
-        ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
-
-        ctx.strokeStyle = isEraser ? "#fb7185" : "#fbbf24";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
       }
     }
 

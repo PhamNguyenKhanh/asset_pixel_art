@@ -26,6 +26,40 @@ export type ResizeAnchor =
 
 export type ResizeMode = "canvas" | "scale";
 
+export interface SymmetryConfig {
+  x: boolean;
+  y: boolean;
+}
+
+export type AutoOutlineMode = "solid" | "sel-out";
+export type AutoOutlineConnectivity = 4 | 8;
+export type AutoOutlineScope = "current-layer" | "current-frame" | "all-frames";
+
+export interface AutoOutlineOptions {
+  mode: AutoOutlineMode;
+  color: RGBA;
+  darkenAmount: number; // 0.15..0.85
+  hueShift: number; // 0..1
+  connectivity: AutoOutlineConnectivity;
+  scope: AutoOutlineScope;
+  createSeparateLayer: boolean;
+}
+
+export type ColorReplaceScope = "current-layer" | "current-frame" | "all-frames";
+
+export interface ColorReplaceOptions {
+  sourceColor: RGBA;
+  targetColor: RGBA;
+  tolerance: number; // 0..128
+  scope: ColorReplaceScope;
+}
+
+export interface PaletteColorUsage {
+  color: RGBA;
+  packed: number;
+  count: number;
+}
+
 export interface RGBA {
   r: number;
   g: number;

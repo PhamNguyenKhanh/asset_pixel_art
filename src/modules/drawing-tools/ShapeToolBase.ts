@@ -8,6 +8,7 @@ import {
 } from "@/core/canvas/dirtyRect";
 import { packColor } from "@/core/image-processing/color";
 import { getSquareBrushOffsets } from "@/core/image-processing/bresenham";
+import { expandSymmetryPoints } from "@/core/image-processing/symmetry";
 import { PixelPatchCommand } from "@/core/history/PixelPatchCommand";
 
 /**
@@ -91,16 +92,32 @@ export abstract class ShapeToolBase implements ITool {
     );
 
     const offsets = filled ? [{ x: 0, y: 0 }] : getSquareBrushOffsets(ctx.getBrushSize());
+    const symmetry = ctx.getSymmetry();
+    const tileMode = ctx.getTileMode();
     const dirty: DirtyRect = createEmptyDirtyRect();
 
-    // Compute exact bounding dirty rect first
+    // Compute exact bounding dirty rect first (including symmetry & tile wrap)
+    const expandedPixels: Point[] = [];
     for (let i = 0; i < points.length; i++) {
       const pt = points[i]!;
       for (let j = 0; j < offsets.length; j++) {
         const px = pt.x + offsets[j]!.x;
         const py = pt.y + offsets[j]!.y;
-        if (layer.buffer.isInBounds(px, py)) {
-          expandDirtyRect(dirty, px, py);
+        if (!tileMode && !layer.buffer.isInBounds(px, py)) continue;
+        const symPoints = expandSymmetryPoints(
+          px,
+          py,
+          layer.buffer.width,
+          layer.buffer.height,
+          symmetry,
+          tileMode,
+        );
+        for (let k = 0; k < symPoints.length; k++) {
+          const sp = symPoints[k]!;
+          if (layer.buffer.isInBounds(sp.x, sp.y)) {
+            expandDirtyRect(dirty, sp.x, sp.y);
+            expandedPixels.push(sp);
+          }
         }
       }
     }
@@ -111,14 +128,10 @@ export abstract class ShapeToolBase implements ITool {
     if (clamped) {
       const beforePixels = layer.buffer.extractRect(clamped);
       let mutated = false;
-      for (let i = 0; i < points.length; i++) {
-        const pt = points[i]!;
-        for (let j = 0; j < offsets.length; j++) {
-          const px = pt.x + offsets[j]!.x;
-          const py = pt.y + offsets[j]!.y;
-          if (layer.buffer.setPacked(px, py, this.activePacked)) {
-            mutated = true;
-          }
+      for (let i = 0; i < expandedPixels.length; i++) {
+        const sp = expandedPixels[i]!;
+        if (layer.buffer.setPacked(sp.x, sp.y, this.activePacked)) {
+          mutated = true;
         }
       }
 
@@ -169,11 +182,29 @@ export abstract class ShapeToolBase implements ITool {
       filled,
       this.shiftHeld,
     );
-    const brushSize = filled ? 1 : ctx.getBrushSize();
+    const offsets = filled ? [{ x: 0, y: 0 }] : getSquareBrushOffsets(ctx.getBrushSize());
+    const symmetry = ctx.getSymmetry();
+    const tileMode = ctx.getTileMode();
 
     for (let i = 0; i < points.length; i++) {
       const pt = points[i]!;
-      this.previewBuffer.stampSquareBrush(pt.x, pt.y, brushSize, this.activePacked);
+      for (let j = 0; j < offsets.length; j++) {
+        const px = pt.x + offsets[j]!.x;
+        const py = pt.y + offsets[j]!.y;
+        if (!tileMode && !this.previewBuffer.isInBounds(px, py)) continue;
+        const symPoints = expandSymmetryPoints(
+          px,
+          py,
+          this.previewBuffer.width,
+          this.previewBuffer.height,
+          symmetry,
+          tileMode,
+        );
+        for (let k = 0; k < symPoints.length; k++) {
+          const sp = symPoints[k]!;
+          this.previewBuffer.setPacked(sp.x, sp.y, this.activePacked);
+        }
+      }
     }
 
     ctx.setPreviewBuffer(this.previewBuffer, false);

@@ -47,6 +47,7 @@ export function ToolRail() {
   const service = useEditorService();
   const activeTool = useEditorStore((s) => s.activeTool);
   const brushSize = useEditorStore((s) => s.brushSize);
+  const pixelPerfect = useEditorStore((s) => s.pixelPerfect);
   const shapeFillMode = useEditorStore((s) => s.shapeFillMode);
   const fillMode = useEditorStore((s) => s.smartFillConfig.mode);
   const setRightPanelOpen = useEditorStore((s) => s.setRightPanelOpen);
@@ -128,6 +129,29 @@ export function ToolRail() {
             })}
           </div>
         </div>
+
+        {/* Pixel-Perfect Stroke (cho Bút chì 1px) */}
+        {activeTool === "pencil" && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                data-testid="pixel-perfect-btn"
+                data-active={pixelPerfect}
+                onClick={() => service.togglePixelPerfect()}
+                className="flex w-full flex-col items-center justify-center rounded border border-white/10 bg-[#12141a] px-1 py-1.5 text-[10px] font-medium text-zinc-400 transition-colors hover:border-white/25 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-300 cursor-pointer"
+              >
+                <span>Mượt nét</span>
+                <span className="font-mono text-[8px] opacity-75">
+                  {brushSize === 1 ? "Pixel-Perfect" : "Chỉ 1px"}
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Pixel-Perfect Stroke: tự khử góc vuông L thừa khi vẽ Bút chì 1px (Shift+P)
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         {/* Chế độ Đổ màu nhanh */}
         {showFillOptions && (

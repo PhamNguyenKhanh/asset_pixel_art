@@ -1,7 +1,8 @@
 import type { ITool, IToolContext, PointerInputEvent } from "@/core/contracts";
-import { getDirtyRectSize } from "@/core/canvas/dirtyRect";
-import { packColor, unpackRGBA } from "@/core/image-processing/color";
+import { mergeDirtyRects } from "@/core/canvas/dirtyRect";
+import { packColor } from "@/core/image-processing/color";
 import { scanlineFloodFill } from "@/core/image-processing/floodFill";
+import { expandSymmetryPoints, wrapCoord } from "@/core/image-processing/symmetry";
 import { PixelPatchCommand } from "@/core/history/PixelPatchCommand";
 
 /**
@@ -19,52 +20,58 @@ export class BucketFillTool implements ITool {
   onPointerDown(event: PointerInputEvent, ctx: IToolContext): void {
     const layer = ctx.document.getActiveLayer();
     if (layer.locked || !layer.visible) return;
-    if (!layer.buffer.isInBounds(event.pixelX, event.pixelY)) return;
+
+    const tileMode = ctx.getTileMode();
+    const startX = tileMode ? wrapCoord(event.pixelX, layer.buffer.width) : event.pixelX;
+    const startY = tileMode ? wrapCoord(event.pixelY, layer.buffer.height) : event.pixelY;
+    if (!layer.buffer.isInBounds(startX, startY)) return;
 
     const color = event.button === 2 ? ctx.getSecondaryColor() : ctx.getPrimaryColor();
     const fillConfig = ctx.getSmartFillConfig();
 
     // Modes 2 & 3: Smart Color Fill / Material Fill -> Non-destructive Live Preview
     if (fillConfig.mode === "smart" || fillConfig.mode === "material") {
-      ctx.startSmartFillPreview(event.pixelX, event.pixelY, color);
+      ctx.startSmartFillPreview(startX, startY, color);
       return;
     }
 
-    // Mode 1: Solid Fill -> Instant commit with minimal DirtyRect Undo command
+    // Mode 1: Solid Fill -> Instant commit with Symmetry + Tile Wrap + minimal DirtyRect Undo
     const frame = ctx.document.getActiveFrame();
     const packed = packColor(color);
-    const result = scanlineFloodFill(layer.buffer, event.pixelX, event.pixelY, packed);
-    if (!result.changed || !result.dirtyRect) {
+    const symmetry = ctx.getSymmetry();
+    const seedPoints = expandSymmetryPoints(
+      startX,
+      startY,
+      layer.buffer.width,
+      layer.buffer.height,
+      symmetry,
+      tileMode,
+    );
+
+    const beforeClone = layer.buffer.clone();
+    let mergedDirty: ReturnType<typeof mergeDirtyRects> | null = null;
+
+    for (let i = 0; i < seedPoints.length; i++) {
+      const seed = seedPoints[i]!;
+      const result = scanlineFloodFill(layer.buffer, seed.x, seed.y, packed, tileMode);
+      if (result.changed && result.dirtyRect) {
+        mergedDirty = mergeDirtyRects(mergedDirty, result.dirtyRect);
+      }
+    }
+
+    if (!mergedDirty) {
       return;
     }
 
-    const rect = result.dirtyRect;
-    const afterPixels = layer.buffer.extractRect(rect);
-    const beforePixels = new Uint8ClampedArray(afterPixels.length);
-    beforePixels.set(afterPixels);
-
-    const { width: patchW } = getDirtyRectSize(rect);
-    const prevRgba = unpackRGBA(result.targetColor);
-
-    for (let i = 0; i < result.spans.length; i++) {
-      const span = result.spans[i]!;
-      const localY = span.y - rect.minY;
-      for (let x = span.left; x <= span.right; x++) {
-        const localX = x - rect.minX;
-        const offset = (localY * patchW + localX) * 4;
-        beforePixels[offset] = prevRgba.r;
-        beforePixels[offset + 1] = prevRgba.g;
-        beforePixels[offset + 2] = prevRgba.b;
-        beforePixels[offset + 3] = prevRgba.a;
-      }
-    }
+    const beforePixels = beforeClone.extractRect(mergedDirty);
+    const afterPixels = layer.buffer.extractRect(mergedDirty);
 
     const command = new PixelPatchCommand({
       name: "Bucket Fill",
       document: ctx.document,
       frameId: frame.id,
       layerId: layer.id,
-      rect,
+      rect: mergedDirty,
       beforePixels,
       afterPixels,
       onApplied: (appliedRect) => {
@@ -77,7 +84,7 @@ export class BucketFillTool implements ITool {
     if (color.a > 0) {
       ctx.recordRecentColor(color);
     }
-    ctx.markDirty(rect);
+    ctx.markDirty(mergedDirty);
     ctx.notifyDocumentChanged();
   }
 

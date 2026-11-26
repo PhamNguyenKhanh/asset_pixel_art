@@ -14,6 +14,8 @@ import { ResizeCropDialog } from "@/components/dialogs/ResizeCropDialog";
 import { ImportDialog } from "@/components/dialogs/ImportDialog";
 import { ExportDialog } from "@/components/dialogs/ExportDialog";
 import { ShortcutsDialog } from "@/components/dialogs/ShortcutsDialog";
+import { AutoOutlineDialog } from "@/components/dialogs/AutoOutlineDialog";
+import { ColorReplaceDialog } from "@/components/dialogs/ColorReplaceDialog";
 
 export function PixelEditorShell() {
   const [newCanvasOpen, setNewCanvasOpen] = useState(false);
@@ -21,6 +23,8 @@ export function PixelEditorShell() {
   const [importOpen, setImportOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [autoOutlineOpen, setAutoOutlineOpen] = useState(false);
+  const [colorReplaceOpen, setColorReplaceOpen] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -52,6 +56,8 @@ export function PixelEditorShell() {
             onOpenImport={() => setImportOpen(true)}
             onOpenExport={() => setExportOpen(true)}
             onOpenShortcuts={() => setShortcutsOpen(true)}
+            onOpenAutoOutline={() => setAutoOutlineOpen(true)}
+            onOpenColorReplace={() => setColorReplaceOpen(true)}
           />
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <ToolRail />
@@ -59,7 +65,7 @@ export function PixelEditorShell() {
               <CanvasViewport />
               <FrameTimeline />
             </div>
-            <InspectorSidebar />
+            <InspectorSidebar onOpenColorReplace={() => setColorReplaceOpen(true)} />
           </div>
           <StatusBar />
 
@@ -68,6 +74,8 @@ export function PixelEditorShell() {
           <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
           <ExportDialog open={exportOpen} onOpenChange={setExportOpen} />
           <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+          <AutoOutlineDialog open={autoOutlineOpen} onOpenChange={setAutoOutlineOpen} />
+          <ColorReplaceDialog open={colorReplaceOpen} onOpenChange={setColorReplaceOpen} />
         </div>
       </EditorProvider>
     </TooltipProvider>

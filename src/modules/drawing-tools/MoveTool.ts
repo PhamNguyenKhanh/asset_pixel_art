@@ -2,7 +2,11 @@ import type { SelectionRect } from "@/types/editor";
 import type { ITool, IToolContext, PointerInputEvent } from "@/core/contracts";
 import { PixelBuffer } from "@/core/document/PixelBuffer";
 import { TRANSPARENT_PACKED } from "@/core/image-processing/color";
-import { clampSelectionRect, translateBuffer } from "@/core/image-processing/transforms";
+import {
+  clampSelectionRect,
+  translateBuffer,
+  translateBufferWrapped,
+} from "@/core/image-processing/transforms";
 import { PixelPatchCommand } from "@/core/history/PixelPatchCommand";
 
 /**
@@ -64,7 +68,7 @@ export class MoveTool implements ITool {
     if (!this.active) return;
     const dx = event.pixelX - this.startX;
     const dy = event.pixelY - this.startY;
-    this.buildPreview(dx, dy);
+    this.buildPreview(dx, dy, ctx.getTileMode());
     if (this.previewBuffer) {
       ctx.setPreviewBuffer(this.previewBuffer, true);
     }
@@ -86,7 +90,7 @@ export class MoveTool implements ITool {
     ctx.setPreviewBuffer(null);
 
     if ((dx !== 0 || dy !== 0) && this.originalBuffer) {
-      this.buildPreview(dx, dy);
+      this.buildPreview(dx, dy, ctx.getTileMode());
       if (this.previewBuffer) {
         const frame = ctx.document.getActiveFrame();
         const layer = ctx.document.getActiveLayer();
@@ -145,7 +149,7 @@ export class MoveTool implements ITool {
     this.reset();
   }
 
-  private buildPreview(dx: number, dy: number): void {
+  private buildPreview(dx: number, dy: number, wrap = false): void {
     if (!this.originalBuffer) return;
 
     if (this.selectionRect && this.floatingSelection && this.baseWithoutSelection) {
@@ -162,7 +166,9 @@ export class MoveTool implements ITool {
       }
       this.previewBuffer = next;
     } else {
-      this.previewBuffer = translateBuffer(this.originalBuffer, dx, dy);
+      this.previewBuffer = wrap
+        ? translateBufferWrapped(this.originalBuffer, dx, dy)
+        : translateBuffer(this.originalBuffer, dx, dy);
     }
   }
 

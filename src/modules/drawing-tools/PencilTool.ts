@@ -20,4 +20,8 @@ export class PencilTool extends StrokeToolBase {
   protected getCommandName(): string {
     return "Pencil Stroke";
   }
+
+  protected override supportsPixelPerfect(): boolean {
+    return true;
+  }
 }

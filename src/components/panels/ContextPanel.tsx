@@ -11,10 +11,13 @@ import {
   Flower2,
   Gem,
   Lamp,
+  LayoutGrid,
   Mountain,
   PawPrint,
   Sliders,
   Sparkles,
+  SplitSquareHorizontal,
+  SplitSquareVertical,
   Sun,
   Sword,
   Trees,
@@ -43,11 +46,21 @@ const ASSET_ICONS: Record<string, React.ComponentType<{ className?: string }>> =
 export function ContextPanel() {
   const service = useEditorService();
   const assetContextState = useEditorStore((s) => s.documentMeta.assetContext);
+  const tileMode = useEditorStore((s) => s.tileMode);
+  const symmetry = useEditorStore((s) => s.symmetry);
   const importNamedPalette = useEditorStore((s) => s.importNamedPalette);
 
   const profiles = service.listAssetContextProfiles();
   const activeProfile = service.getAssetContextProfile();
   const recommendedMaterials = service.getRecommendedMaterials();
+  const isTileContext =
+    assetContextState.assetTypeId === "environment" ||
+    assetContextState.assetTypeId === "building";
+  const isSymmetryContext =
+    assetContextState.assetTypeId === "character" ||
+    assetContextState.assetTypeId === "weapon" ||
+    assetContextState.assetTypeId === "item" ||
+    assetContextState.assetTypeId === "vehicle";
 
   const applyHexColor = (hex: string, secondary: boolean) => {
     const rgba = hexToRgba(hex);
@@ -106,6 +119,70 @@ export function ContextPanel() {
         <p className="text-[10px] text-zinc-500">
           Tùy chọn &amp; không phá hủy — đổi ngữ cảnh không bao giờ làm thay đổi pixel đã vẽ.
         </p>
+
+        {/* Gợi ý nhanh chế độ Tile liền mạch 3x3 cho Environment / Building */}
+        {isTileContext && (
+          <div
+            data-testid="context-seamless-tile-card"
+            className="flex items-center justify-between gap-2 rounded-md border border-emerald-400/35 bg-emerald-500/10 p-2"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <LayoutGrid className="h-4 w-4 shrink-0 text-emerald-300" />
+              <div className="min-w-0">
+                <div className="text-[11px] font-medium text-emerald-200">
+                  Lặp gạch liền mạch 3×3
+                </div>
+                <div className="text-[10px] text-emerald-300/75">
+                  Xem trước 3×3 &amp; vẽ tràn biên cho tilemap
+                </div>
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={tileMode ? "default" : "secondary"}
+              data-testid="context-toggle-tile-btn"
+              onClick={() => service.toggleTileMode()}
+              className="h-6 shrink-0 px-2 text-[10px]"
+            >
+              {tileMode ? "Đang bật" : "Bật 3×3"}
+            </Button>
+          </div>
+        )}
+
+        {/* Gợi ý nhanh Đối xứng X/Y cho Character / Weapon / Item / Vehicle */}
+        {isSymmetryContext && (
+          <div
+            data-testid="context-symmetry-card"
+            className="flex items-center justify-between gap-2 rounded-md border border-sky-400/25 bg-sky-500/8 p-2"
+          >
+            <span className="text-[11px] font-medium text-sky-200">
+              Vẽ đối xứng nhanh
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={symmetry.x ? "default" : "secondary"}
+                onClick={() => service.toggleSymmetryX()}
+                className="h-6 gap-1 px-2 text-[10px]"
+              >
+                <SplitSquareHorizontal className="h-3 w-3" />
+                <span>X</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={symmetry.y ? "default" : "secondary"}
+                onClick={() => service.toggleSymmetryY()}
+                className="h-6 gap-1 px-2 text-[10px]"
+              >
+                <SplitSquareVertical className="h-3 w-3" />
+                <span>Y</span>
+              </Button>
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="h-px bg-white/8" />

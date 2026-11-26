@@ -1,4 +1,11 @@
-import type { DirtyRect, RGBA, SelectionRect, ShapeFillMode, ToolId } from "@/types/editor";
+import type {
+  DirtyRect,
+  RGBA,
+  SelectionRect,
+  ShapeFillMode,
+  SymmetryConfig,
+  ToolId,
+} from "@/types/editor";
 import type { SmartFillConfig } from "@/types/smartFill";
 import type {
   AssetContextProfile,
@@ -38,6 +45,9 @@ export interface IToolContext {
   getSecondaryColor(): RGBA;
   getBrushSize(): number;
   getShapeFillMode(): ShapeFillMode;
+  getSymmetry(): SymmetryConfig;
+  getPixelPerfect(): boolean;
+  getTileMode(): boolean;
   setPrimaryColor(color: RGBA): void;
   setSecondaryColor(color: RGBA): void;
   recordRecentColor(color: RGBA): void;

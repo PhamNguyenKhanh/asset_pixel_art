@@ -94,6 +94,22 @@ export function translateBuffer(source: PixelBuffer, dx: number, dy: number): Pi
   return out;
 }
 
+export function translateBufferWrapped(source: PixelBuffer, dx: number, dy: number): PixelBuffer {
+  const out = new PixelBuffer(source.width, source.height);
+  const w = source.width;
+  const h = source.height;
+  const ix = Math.round(dx);
+  const iy = Math.round(dy);
+  for (let y = 0; y < h; y++) {
+    const ny = (((y + iy) % h) + h) % h;
+    for (let x = 0; x < w; x++) {
+      const nx = (((x + ix) % w) + w) % w;
+      out.setPacked(nx, ny, source.getPacked(x, y));
+    }
+  }
+  return out;
+}
+
 export function computeAnchorOffset(
   oldWidth: number,
   oldHeight: number,

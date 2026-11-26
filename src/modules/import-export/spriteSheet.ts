@@ -125,3 +125,66 @@ export function buildSpriteSheet(
 
   return { buffer: sheetBuffer, metadata };
 }
+
+export interface SpriteSheetSliceOptions {
+  frameWidth: number;
+  frameHeight: number;
+  offsetX?: number;
+  offsetY?: number;
+  maxFrames?: number;
+}
+
+export interface SpriteSheetSliceResult {
+  frames: PixelBuffer[];
+  cols: number;
+  rows: number;
+  totalFrames: number;
+}
+
+/**
+ * Slices a sprite sheet PixelBuffer into individual frame buffers in row-major order.
+ */
+export function sliceSpriteSheetBuffer(
+  source: PixelBuffer,
+  options: SpriteSheetSliceOptions,
+): SpriteSheetSliceResult {
+  const fw = Math.floor(options.frameWidth);
+  const fh = Math.floor(options.frameHeight);
+  const ox = Math.max(0, Math.floor(options.offsetX ?? 0));
+  const oy = Math.max(0, Math.floor(options.offsetY ?? 0));
+  const maxFrames = Math.max(1, Math.floor(options.maxFrames ?? 256));
+
+  if (fw <= 0 || fh <= 0 || ox >= source.width || oy >= source.height) {
+    return { frames: [], cols: 0, rows: 0, totalFrames: 0 };
+  }
+
+  const cols = Math.floor((source.width - ox) / fw);
+  const rows = Math.floor((source.height - oy) / fh);
+  if (cols <= 0 || rows <= 0) {
+    return { frames: [], cols: 0, rows: 0, totalFrames: 0 };
+  }
+
+  const totalFrames = Math.min(cols * rows, maxFrames);
+  const frames: PixelBuffer[] = [];
+
+  for (let i = 0; i < totalFrames; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const startX = ox + col * fw;
+    const startY = oy + row * fh;
+    const frameBuf = new PixelBuffer(fw, fh);
+
+    for (let y = 0; y < fh; y++) {
+      const srcOffset = ((startY + y) * source.width + startX) * 4;
+      const dstOffset = y * fw * 4;
+      frameBuf.data.set(
+        source.data.subarray(srcOffset, srcOffset + fw * 4),
+        dstOffset,
+      );
+    }
+
+    frames.push(frameBuf);
+  }
+
+  return { frames, cols, rows, totalFrames };
+}

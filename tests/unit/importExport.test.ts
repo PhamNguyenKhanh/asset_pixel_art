@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PixelDocument } from "@/core/document/PixelDocument";
 import * as FrameService from "@/modules/animation/FrameService";
 import * as LayerService from "@/modules/layers/LayerService";
-import { buildSpriteSheet } from "@/modules/import-export/spriteSheet";
+import { buildSpriteSheet, sliceSpriteSheetBuffer } from "@/modules/import-export/spriteSheet";
 import { decodeGif, encodeGif } from "@/modules/import-export/gifCodec";
 import {
   deserializeProject,
@@ -35,6 +35,20 @@ describe("Import/Export codecs", () => {
     expect(grid.buffer.width).toBe(8);
     expect(grid.buffer.height).toBe(8);
     expect(grid.metadata.frames[2]!.frame).toEqual({ x: 0, y: 4, w: 4, h: 4 });
+
+    // Slice the horizontal sprite sheet back into frames with offset
+    const sliced = sliceSpriteSheetBuffer(grid.buffer, {
+      frameWidth: 4,
+      frameHeight: 4,
+      offsetX: 0,
+      offsetY: 0,
+    });
+    expect(sliced.cols).toBe(2);
+    expect(sliced.rows).toBe(2);
+    expect(sliced.frames).toHaveLength(4);
+    expect(sliced.frames[0]!.getPixel(0, 0)).toEqual({ r: 255, g: 0, b: 0, a: 255 });
+    expect(sliced.frames[1]!.getPixel(1, 1)).toEqual({ r: 0, g: 255, b: 0, a: 255 });
+    expect(sliced.frames[2]!.getPixel(2, 2)).toEqual({ r: 0, g: 0, b: 255, a: 255 });
   });
 
   it("round-trips animated GIF encoding and decoding with transparency intact", () => {

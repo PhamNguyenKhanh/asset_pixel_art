@@ -91,3 +91,34 @@ export async function clearLocalDraft(): Promise<void> {
     }
   });
 }
+
+export async function resetLocalBrowserData(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Ignore storage access errors
+  }
+
+  try {
+    window.sessionStorage.clear();
+  } catch {
+    // Ignore storage access errors
+  }
+
+  await clearLocalDraft();
+
+  if ("indexedDB" in window) {
+    await new Promise<void>((resolve) => {
+      try {
+        const req = window.indexedDB.deleteDatabase(DB_NAME);
+        req.onsuccess = () => resolve();
+        req.onerror = () => resolve();
+        req.onblocked = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  }
+}

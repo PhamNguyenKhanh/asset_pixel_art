@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Layers2, Pause, Play } from "lucide-react";
+import { Layers2, Maximize2, Pause, Play } from "lucide-react";
 import { MAX_FPS, MIN_FPS } from "@/types/editor";
 import { useEditorService } from "@/hooks/EditorContext";
 import { useEditorStore } from "@/stores/editorStore";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AnimationPreviewDialog } from "@/components/dialogs/AnimationPreviewDialog";
 
 const PREVIEW_BOX = 96;
 
@@ -18,6 +19,7 @@ export function AnimationPreviewCard() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [previewFrameIdx, setPreviewFrameIdx] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Playback timer honoring per-frame durationMs
   useEffect(() => {
@@ -76,18 +78,32 @@ export function AnimationPreviewCard() {
       data-testid="animation-preview-card"
       className="flex items-center gap-3 border-b border-white/8 bg-[#14171e] p-3"
     >
-      {/* Mini Live Preview Canvas */}
-      <div className="checkerboard-swatch relative h-24 w-24 shrink-0 overflow-hidden rounded-md border border-white/12 shadow-inner">
-        <canvas
-          ref={canvasRef}
-          width={PREVIEW_BOX}
-          height={PREVIEW_BOX}
-          className="pixelated block h-full w-full"
-        />
-        <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 font-mono text-[9px] text-zinc-300">
-          {displayIndex + 1}/{docMeta.frameCount}
-        </span>
-      </div>
+      {/* Mini Live Preview Canvas (click to expand) */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            aria-label="Mở khung xem trước lớn"
+            data-testid="expand-preview-btn"
+            className="group checkerboard-swatch relative h-24 w-24 shrink-0 cursor-pointer overflow-hidden rounded-md border border-white/12 shadow-inner transition-colors hover:border-amber-400/70 focus:outline-none focus:ring-1 focus:ring-amber-400"
+          >
+            <canvas
+              ref={canvasRef}
+              width={PREVIEW_BOX}
+              height={PREVIEW_BOX}
+              className="pixelated block h-full w-full"
+            />
+            <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/70 p-0.5 text-zinc-200 opacity-0 transition-opacity group-hover:opacity-100">
+              <Maximize2 className="h-3 w-3" />
+            </span>
+            <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 font-mono text-[9px] text-zinc-300">
+              {displayIndex + 1}/{docMeta.frameCount}
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Nhấn để mở khung xem trước lớn</TooltipContent>
+      </Tooltip>
 
       {/* Điều khiển: Phát/Tạm dừng, FPS, Da hành */}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -161,6 +177,8 @@ export function AnimationPreviewCard() {
           />
         </div>
       </div>
+
+      <AnimationPreviewDialog open={modalOpen} onOpenChange={setModalOpen} />
     </div>
   );
 }

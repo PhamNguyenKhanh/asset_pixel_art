@@ -38,6 +38,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
   const service = useEditorService();
   const docMeta = useEditorStore((s) => s.documentMeta);
   const customPalettes = useEditorStore((s) => s.customPalettes);
+  const lightingEnabled = useEditorStore((s) => s.lightingConfig.enabled);
 
   const [tab, setTab] = useState<ExportTab>("png");
   const [scale, setScale] = useState<number>(1);
@@ -46,6 +47,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
   const [sheetColumns, setSheetColumns] = useState<number>(4);
   const [sheetPadding, setSheetPadding] = useState<number>(0);
   const [includeJson, setIncludeJson] = useState<boolean>(true);
+  const [applyLightingAllFrames, setApplyLightingAllFrames] = useState<boolean>(true);
   const [busy, setBusy] = useState(false);
 
   const safeSlug = docMeta.name.replace(/[^a-zA-Z0-9_-]+/g, "_").toLowerCase() || "sprite";
@@ -53,6 +55,12 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
   const handleExport = async () => {
     setBusy(true);
     try {
+      const allFrameLightingPostProcess =
+        lightingEnabled && applyLightingAllFrames
+          ? (buf: Parameters<typeof service.applyLightingToBuffer>[0], idx: number) =>
+              service.applyLightingToBuffer(buf, idx)
+          : undefined;
+
       if (tab === "png") {
         const buf = service.getCompositedFrameBuffer(docMeta.activeFrameIndex);
         if (!buf) return;
@@ -62,7 +70,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
         const bytes = encodeGif(service.document, {
           scale,
           repeat: gifRepeat,
-          postProcessFrame: (buf, idx) => service.applyLightingToBuffer(buf, idx),
+          postProcessFrame: allFrameLightingPostProcess,
         });
         const copy = new Uint8Array(bytes.length);
         copy.set(bytes);
@@ -74,7 +82,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
           columns: sheetColumns,
           padding: sheetPadding,
           scale,
-          postProcessFrame: (buf, idx) => service.applyLightingToBuffer(buf, idx),
+          postProcessFrame: allFrameLightingPostProcess,
         });
         const pngBlob = await pixelBufferToPngBlob(buffer, 1);
         downloadBlob(pngBlob, `${safeSlug}_sheet.png`);
@@ -208,6 +216,18 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                 </button>
               </div>
             </div>
+            {lightingEnabled && (
+              <label className="flex items-center gap-2 pt-1 text-xs text-amber-200/90 cursor-pointer">
+                <input
+                  type="checkbox"
+                  data-testid="export-gif-lighting-all-frames"
+                  checked={applyLightingAllFrames}
+                  onChange={(e) => setApplyLightingAllFrames(e.target.checked)}
+                  className="accent-amber-400"
+                />
+                <span>Áp dụng ánh sáng cho tất cả khung hình ({docMeta.frameCount} khung)</span>
+              </label>
+            )}
           </div>
         )}
 
@@ -273,6 +293,18 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
               />
               <span>Tải kèm tệp JSON metadata (chuẩn Unity / Phaser / Aseprite)</span>
             </label>
+            {lightingEnabled && (
+              <label className="flex items-center gap-2 text-xs text-amber-200/90 cursor-pointer">
+                <input
+                  type="checkbox"
+                  data-testid="export-sheet-lighting-all-frames"
+                  checked={applyLightingAllFrames}
+                  onChange={(e) => setApplyLightingAllFrames(e.target.checked)}
+                  className="accent-amber-400"
+                />
+                <span>Áp dụng ánh sáng cho tất cả khung hình ({docMeta.frameCount} khung)</span>
+              </label>
+            )}
           </div>
         )}
 

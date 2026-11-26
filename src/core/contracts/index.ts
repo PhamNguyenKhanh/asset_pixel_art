@@ -1,4 +1,4 @@
-import type { DirtyRect, RGBA, ToolId } from "@/types/editor";
+import type { DirtyRect, RGBA, SelectionRect, ShapeFillMode, ToolId } from "@/types/editor";
 import type { PixelDocument } from "@/core/document/PixelDocument";
 import type { PixelBuffer } from "@/core/document/PixelBuffer";
 import type { HistoryManager } from "@/core/history/HistoryManager";
@@ -29,9 +29,13 @@ export interface IToolContext {
   getPrimaryColor(): RGBA;
   getSecondaryColor(): RGBA;
   getBrushSize(): number;
+  getShapeFillMode(): ShapeFillMode;
   setPrimaryColor(color: RGBA): void;
   setSecondaryColor(color: RGBA): void;
   recordRecentColor(color: RGBA): void;
+  getSelection(): SelectionRect | null;
+  setSelection(rect: SelectionRect | null): void;
+  setPreviewBuffer(buffer: PixelBuffer | null, replaceActiveLayer?: boolean): void;
   markDirty(rect?: DirtyRect): void;
   notifyDocumentChanged(): void;
 }

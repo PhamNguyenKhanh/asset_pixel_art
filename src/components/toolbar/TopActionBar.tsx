@@ -2,13 +2,20 @@
 
 import React from "react";
 import {
+  Download,
   FilePlus2,
+  Film,
+  FlipHorizontal2,
+  FlipVertical2,
   Grid3x3,
   Maximize2,
   PanelRightClose,
   PanelRightOpen,
   Redo2,
+  RotateCw,
+  Scaling,
   Undo2,
+  Upload,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -19,22 +26,32 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 interface TopActionBarProps {
   onOpenNewCanvas: () => void;
+  onOpenResizeCrop: () => void;
+  onOpenImport: () => void;
+  onOpenExport: () => void;
 }
 
-export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
+export function TopActionBar({
+  onOpenNewCanvas,
+  onOpenResizeCrop,
+  onOpenImport,
+  onOpenExport,
+}: TopActionBarProps) {
   const service = useEditorService();
   const docMeta = useEditorStore((s) => s.documentMeta);
   const zoom = useEditorStore((s) => s.zoom);
   const showGrid = useEditorStore((s) => s.showGrid);
   const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
   const setRightPanelOpen = useEditorStore((s) => s.setRightPanelOpen);
+  const timelineOpen = useEditorStore((s) => s.timelineOpen);
+  const setTimelineOpen = useEditorStore((s) => s.setTimelineOpen);
 
   const zoomPercent = Math.round(zoom * 100);
 
   return (
-    <header className="flex h-11 shrink-0 items-center justify-between border-b border-white/8 bg-[#181b22] px-3 select-none">
-      {/* Left: Brand + Document Info + New Canvas */}
-      <div className="flex items-center gap-3">
+    <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#181b22] px-3 select-none">
+      {/* Left: Brand + File Actions */}
+      <div className="flex items-center gap-2">
         <div className="flex items-center gap-2">
           <div
             aria-hidden="true"
@@ -45,15 +62,15 @@ export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
             <span className="rounded-[1px] bg-amber-300/40" />
             <span className="rounded-[1px] bg-amber-400" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-zinc-100">
+          <span className="hidden text-xs font-semibold tracking-wide text-zinc-100 xl:inline">
             PIXEL ART STUDIO
           </span>
         </div>
 
         <div className="h-4 w-px bg-white/10" />
 
-        <div className="flex items-center gap-2">
-          <span className="max-w-[160px] truncate text-xs font-medium text-zinc-300">
+        <div className="flex items-center gap-1.5">
+          <span className="max-w-[130px] truncate text-xs font-medium text-zinc-300">
             {docMeta.name}
           </span>
           <span
@@ -64,23 +81,55 @@ export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
           </span>
         </div>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onOpenNewCanvas}
-              data-testid="new-canvas-btn"
-            >
-              <FilePlus2 className="h-3.5 w-3.5 text-amber-400" />
-              <span>New</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Create New Canvas</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenNewCanvas}
+                data-testid="new-canvas-btn"
+              >
+                <FilePlus2 className="h-3.5 w-3.5 text-amber-400" />
+                <span>New</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Create New Canvas</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenImport}
+                data-testid="import-btn"
+              >
+                <Upload className="h-3.5 w-3.5 text-zinc-300" />
+                <span>Import</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Import PNG, JPG, WebP, GIF, or .pxs.json</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onOpenExport}
+                data-testid="export-btn"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Export PNG, GIF, Sprite Sheet + JSON, or Project</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
-      {/* Center: Undo / Redo + Zoom + Grid */}
+      {/* Center: Undo/Redo + Transform + Zoom + Grid */}
       <div className="flex items-center gap-1">
         <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
           <Tooltip>
@@ -118,8 +167,78 @@ export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
           </Tooltip>
         </div>
 
-        <div className="mx-1.5 h-4 w-px bg-white/10" />
+        <div className="mx-1 h-4 w-px bg-white/10" />
 
+        {/* Transform & Resize Group */}
+        <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => service.flipHorizontal()}
+                aria-label="Flip Horizontal"
+                data-testid="flip-h-btn"
+              >
+                <FlipHorizontal2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Flip Horizontal (Selection or Layer)</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => service.flipVertical()}
+                aria-label="Flip Vertical"
+                data-testid="flip-v-btn"
+              >
+                <FlipVertical2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Flip Vertical (Selection or Layer)</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => service.rotate90("cw")}
+                aria-label="Rotate 90° Clockwise"
+                data-testid="rotate-cw-btn"
+              >
+                <RotateCw className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Rotate Canvas 90° CW</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={onOpenResizeCrop}
+                aria-label="Resize or Crop Canvas"
+                data-testid="resize-crop-btn"
+              >
+                <Scaling className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Resize / Scale / Crop Canvas</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className="mx-1 h-4 w-px bg-white/10" />
+
+        {/* Zoom Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -139,7 +258,7 @@ export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
 
           <span
             data-testid="zoom-readout"
-            className="min-w-[52px] text-center font-mono text-[11px] text-zinc-300"
+            className="min-w-[46px] text-center font-mono text-[11px] text-zinc-300"
           >
             {zoomPercent}%
           </span>
@@ -177,36 +296,52 @@ export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
           </Tooltip>
         </div>
 
-        <div className="mx-1.5 h-4 w-px bg-white/10" />
-
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="tool"
-              size="sm"
+              size="icon"
               data-active={showGrid}
               onClick={() => service.toggleGrid()}
               aria-label="Toggle Pixel Grid"
               data-testid="grid-toggle-btn"
-              className="h-8 px-2.5"
+              className="h-8 w-8"
             >
               <Grid3x3 className="h-3.5 w-3.5" />
-              <span>Grid</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>Toggle Pixel Grid (G)</TooltipContent>
         </Tooltip>
       </div>
 
-      {/* Right: Panel Collapse Toggle */}
-      <div className="flex items-center gap-2">
+      {/* Right: Panel Toggles */}
+      <div className="flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="tool"
+              size="icon"
+              data-active={timelineOpen}
+              onClick={() => setTimelineOpen(!timelineOpen)}
+              aria-label={timelineOpen ? "Hide Animation Timeline" : "Show Animation Timeline"}
+              data-testid="toggle-timeline-btn"
+              className="h-8 w-8"
+            >
+              <Film className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {timelineOpen ? "Hide Timeline" : "Show Timeline"}
+          </TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              aria-label={rightPanelOpen ? "Hide Color Panel" : "Show Color Panel"}
+              aria-label={rightPanelOpen ? "Hide Inspector Panel" : "Show Inspector Panel"}
               data-testid="toggle-right-panel-btn"
             >
               {rightPanelOpen ? (
@@ -217,7 +352,7 @@ export function TopActionBar({ onOpenNewCanvas }: TopActionBarProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {rightPanelOpen ? "Hide Color Panel" : "Show Color Panel"}
+            {rightPanelOpen ? "Hide Inspector" : "Show Inspector"}
           </TooltipContent>
         </Tooltip>
       </div>

@@ -1,8 +1,20 @@
-import { CANVAS_LIMITS } from "@/types/editor";
+import {
+  CANVAS_LIMITS,
+  DEFAULT_FPS,
+  MAX_FPS,
+  MIN_FPS,
+  type OnionSkinConfig,
+  type SelectionRect,
+} from "@/types/editor";
 import { Frame } from "@/core/document/Frame";
-import type { Layer } from "@/core/document/Layer";
+import { Layer } from "@/core/document/Layer";
 
 let documentCounter = 1;
+let layerIdCounter = 100;
+
+export function nextLayerId(): string {
+  return `layer-${layerIdCounter++}`;
+}
 
 export function validateCanvasDimensions(
   width: number,
@@ -40,6 +52,9 @@ export class PixelDocument {
   frames: Frame[];
   activeFrameIndex: number;
   activeLayerId: string;
+  fps: number;
+  onionSkin: OnionSkinConfig;
+  selection: SelectionRect | null;
 
   constructor(
     width: number = CANVAS_LIMITS.DEFAULT_SIZE,
@@ -54,7 +69,17 @@ export class PixelDocument {
     this.name = name;
     this.width = width;
     this.height = height;
-    const initialFrame = new Frame(width, height);
+    this.fps = DEFAULT_FPS;
+    this.onionSkin = {
+      enabled: false,
+      prevFrames: 1,
+      nextFrames: 1,
+      opacity: 0.3,
+    };
+    this.selection = null;
+    const initialFrame = new Frame(width, height, {
+      durationMs: Math.round(1000 / DEFAULT_FPS),
+    });
     this.frames = [initialFrame];
     this.activeFrameIndex = 0;
     this.activeLayerId = initialFrame.layers[0]!.id;
@@ -83,6 +108,48 @@ export class PixelDocument {
     return frame?.getLayerById(layerId);
   }
 
+  setFps(nextFps: number): void {
+    this.fps = Math.max(MIN_FPS, Math.min(MAX_FPS, Math.round(nextFps)));
+  }
+
+  setActiveFrameIndex(index: number): void {
+    if (index < 0 || index >= this.frames.length) return;
+    this.activeFrameIndex = index;
+    const frame = this.frames[index]!;
+    if (!frame.getLayerById(this.activeLayerId) && frame.layers[0]) {
+      this.activeLayerId = frame.layers[0].id;
+    }
+  }
+
+  setActiveLayerId(layerId: string): void {
+    const frame = this.getActiveFrame();
+    if (frame.getLayerById(layerId)) {
+      this.activeLayerId = layerId;
+    }
+  }
+
+  /**
+   * Creates an empty Frame matching the exact synchronized layer stack (ids/names/visibility/opacity)
+   * of the current document so multi-layer animation stays consistent across frames.
+   */
+  createFrameMatchingLayers(durationMs?: number): Frame {
+    const templateLayers = this.getActiveFrame().layers;
+    const frame = new Frame(this.width, this.height, {
+      durationMs: durationMs ?? Math.round(1000 / this.fps),
+    });
+    frame.layers = templateLayers.map(
+      (tmpl) =>
+        new Layer(this.width, this.height, {
+          id: tmpl.id,
+          name: tmpl.name,
+          visible: tmpl.visible,
+          locked: tmpl.locked,
+          opacity: tmpl.opacity,
+        }),
+    );
+    return frame;
+  }
+
   reset(width: number, height: number, name?: string): void {
     const check = validateCanvasDimensions(width, height);
     if (!check.valid) {
@@ -92,7 +159,10 @@ export class PixelDocument {
     this.name = name ?? this.name;
     this.width = width;
     this.height = height;
-    const initialFrame = new Frame(width, height);
+    this.selection = null;
+    const initialFrame = new Frame(width, height, {
+      durationMs: Math.round(1000 / this.fps),
+    });
     this.frames = [initialFrame];
     this.activeFrameIndex = 0;
     this.activeLayerId = initialFrame.layers[0]!.id;

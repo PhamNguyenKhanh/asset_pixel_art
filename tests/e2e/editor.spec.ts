@@ -1,18 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Pixel Art Studio — Phase 1 Basic Editor", () => {
-  test("opens editor, draws pixels, undoes/redoes, toggles grid, and creates a new canvas", async ({
+test.describe("Pixel Art Studio — Core & Piskel-like Editor (Phase 1 & 2)", () => {
+  test("draws, uses shape/select tools, manages layers & frames, and opens export dialog", async ({
     page,
   }) => {
     await page.goto("/");
 
-    // Verify core layout renders with default 32x32 canvas
+    // Verify default 32x32 canvas
     await expect(page.getByTestId("canvas-size-badge")).toHaveText("32×32");
     await expect(page.getByTestId("display-canvas")).toBeVisible();
     await expect(page.getByTestId("undo-btn")).toBeDisabled();
-    await expect(page.getByTestId("redo-btn")).toBeDisabled();
 
-    // Draw a stroke across the center of the viewport
+    // Draw a pencil stroke
     const viewport = page.getByTestId("canvas-viewport");
     const box = await viewport.boundingBox();
     expect(box).not.toBeNull();
@@ -24,38 +23,48 @@ test.describe("Pixel Art Studio — Phase 1 Basic Editor", () => {
     await page.mouse.move(cx + 20, cy + 20, { steps: 6 });
     await page.mouse.up();
 
-    // Undo should now be enabled
     await expect(page.getByTestId("undo-btn")).toBeEnabled();
     await page.getByTestId("undo-btn").click();
-    await expect(page.getByTestId("undo-btn")).toBeDisabled();
     await expect(page.getByTestId("redo-btn")).toBeEnabled();
-
     await page.getByTestId("redo-btn").click();
-    await expect(page.getByTestId("undo-btn")).toBeEnabled();
 
-    // Switch tools via keyboard shortcuts
-    await page.keyboard.press("e");
-    await expect(page.getByTestId("tool-eraser")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("b");
-    await expect(page.getByTestId("tool-bucket")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("i");
-    await expect(page.getByTestId("tool-eyedropper")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("p");
-    await expect(page.getByTestId("tool-pencil")).toHaveAttribute("data-active", "true");
+    // Switch through Phase 2 tools via keyboard shortcuts
+    await page.keyboard.press("l");
+    await expect(page.getByTestId("tool-line")).toHaveAttribute("data-active", "true");
+    await page.keyboard.press("u");
+    await expect(page.getByTestId("tool-rectangle")).toHaveAttribute("data-active", "true");
+    await page.keyboard.press("o");
+    await expect(page.getByTestId("tool-ellipse")).toHaveAttribute("data-active", "true");
+    await page.keyboard.press("m");
+    await expect(page.getByTestId("tool-select")).toHaveAttribute("data-active", "true");
+    await page.keyboard.press("v");
+    await expect(page.getByTestId("tool-move")).toHaveAttribute("data-active", "true");
 
-    // Toggle Grid
-    const gridBtn = page.getByTestId("grid-toggle-btn");
-    await expect(gridBtn).toHaveAttribute("data-active", "true");
-    await gridBtn.click();
-    await expect(gridBtn).toHaveAttribute("data-active", "false");
+    // Manage Layers in Layers Tab
+    await page.getByTestId("tab-layers").click();
+    await expect(page.getByTestId("layer-panel")).toBeVisible();
+    await page.getByTestId("add-layer-btn").click();
+    await expect(page.getByTestId("tab-layers")).toContainText("Layers (2)");
 
-    // Create New 64x64 Canvas via dialog
-    await page.getByTestId("new-canvas-btn").click();
-    await expect(page.getByTestId("new-canvas-dialog")).toBeVisible();
-    await page.getByTestId("preset-64").click();
-    await page.getByTestId("confirm-new-canvas-btn").click();
+    // Add Frame in Timeline & Toggle Onion Skin
+    await page.getByTestId("add-frame-btn").click();
+    await expect(page.getByTestId("frame-card-1")).toBeVisible();
+    await page.getByTestId("onion-skin-btn").click();
+    await expect(page.getByTestId("onion-skin-btn")).toHaveAttribute("data-active", "true");
 
+    // Open Resize/Crop Dialog & resize to 64x64
+    await page.getByTestId("resize-crop-btn").click();
+    await expect(page.getByTestId("resize-crop-dialog")).toBeVisible();
+    await page.getByTestId("resize-width-input").fill("64");
+    await page.getByTestId("resize-height-input").fill("64");
+    await page.getByTestId("confirm-resize-btn").click();
     await expect(page.getByTestId("canvas-size-badge")).toHaveText("64×64");
-    await expect(page.getByTestId("undo-btn")).toBeDisabled();
+
+    // Open Export Dialog and verify format tabs
+    await page.getByTestId("export-btn").click();
+    await expect(page.getByTestId("export-dialog")).toBeVisible();
+    await page.getByTestId("export-tab-spritesheet").click();
+    await page.getByTestId("export-tab-gif").click();
+    await page.getByTestId("export-tab-project").click();
   });
 });

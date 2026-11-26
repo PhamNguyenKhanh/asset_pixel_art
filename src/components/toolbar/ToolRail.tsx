@@ -1,7 +1,20 @@
 "use client";
 
 import React from "react";
-import { ArrowLeftRight, Eraser, PaintBucket, Pencil, Pipette } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BoxSelect,
+  Circle,
+  Crop,
+  Eraser,
+  Minus,
+  Move,
+  PaintBucket,
+  Pencil,
+  Pipette,
+  Square,
+  Trash2,
+} from "lucide-react";
 import type { ToolId } from "@/types/editor";
 import { useEditorService } from "@/hooks/EditorContext";
 import { useEditorStore } from "@/stores/editorStore";
@@ -21,6 +34,11 @@ const TOOL_ITEMS: readonly ToolItem[] = [
   { id: "eraser", label: "Eraser", shortcut: "E", icon: Eraser },
   { id: "bucket", label: "Bucket Fill", shortcut: "B", icon: PaintBucket },
   { id: "eyedropper", label: "Color Picker", shortcut: "I", icon: Pipette },
+  { id: "line", label: "Line (Shift: 45°)", shortcut: "L", icon: Minus },
+  { id: "rectangle", label: "Rectangle (Shift: Square)", shortcut: "U", icon: Square },
+  { id: "ellipse", label: "Ellipse (Shift: Circle)", shortcut: "O", icon: Circle },
+  { id: "select", label: "Rectangular Select", shortcut: "M", icon: BoxSelect },
+  { id: "move", label: "Move Layer / Selection", shortcut: "V", icon: Move },
 ];
 
 const BRUSH_SIZES = [1, 2, 3, 4] as const;
@@ -29,14 +47,18 @@ export function ToolRail() {
   const service = useEditorService();
   const activeTool = useEditorStore((s) => s.activeTool);
   const brushSize = useEditorStore((s) => s.brushSize);
+  const shapeFillMode = useEditorStore((s) => s.shapeFillMode);
   const primaryColor = useEditorStore((s) => s.primaryColor);
   const secondaryColor = useEditorStore((s) => s.secondaryColor);
+  const selection = useEditorStore((s) => s.documentMeta.selection);
+
+  const showShapeOptions = activeTool === "rectangle" || activeTool === "ellipse";
 
   return (
-    <aside className="flex w-14 shrink-0 flex-col items-center justify-between border-r border-white/8 bg-[#181b22] py-2.5 select-none">
-      {/* Top: Drawing Tools + Brush Size */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex flex-col items-center gap-1">
+    <aside className="flex w-[86px] shrink-0 flex-col items-center justify-between border-r border-white/8 bg-[#181b22] px-1.5 py-2.5 select-none">
+      {/* Top: Piskel-style 2-column Tool Grid + Contextual Options */}
+      <div className="flex w-full flex-col items-center gap-3">
+        <div className="grid grid-cols-2 gap-1">
           {TOOL_ITEMS.map((tool) => {
             const Icon = tool.icon;
             const isActive = activeTool === tool.id;
@@ -45,15 +67,15 @@ export function ToolRail() {
                 <TooltipTrigger asChild>
                   <Button
                     variant="tool"
-                    size="tool"
+                    size="icon"
                     data-active={isActive}
                     data-testid={`tool-${tool.id}`}
                     aria-label={`${tool.label} (${tool.shortcut})`}
                     onClick={() => service.setTool(tool.id)}
-                    className="relative"
+                    className="relative h-9 w-9"
                   >
                     <Icon className="h-4 w-4" />
-                    <span className="absolute bottom-0.5 right-1 font-mono text-[9px] opacity-60">
+                    <span className="absolute bottom-0.5 right-1 font-mono text-[8px] opacity-55">
                       {tool.shortcut}
                     </span>
                   </Button>
@@ -66,12 +88,12 @@ export function ToolRail() {
           })}
         </div>
 
-        <div className="h-px w-8 bg-white/10" />
+        <div className="h-px w-full bg-white/8" />
 
-        {/* Brush Size Selector (Piskel-style square footprints) */}
+        {/* Brush Size Selector */}
         <div className="flex flex-col items-center gap-1">
           <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-            Size
+            Brush
           </span>
           <div className="grid grid-cols-2 gap-1">
             {BRUSH_SIZES.map((size) => {
@@ -86,7 +108,7 @@ export function ToolRail() {
                       data-testid={`brush-size-${size}`}
                       aria-label={`Brush size ${size}px`}
                       onClick={() => service.setBrushSize(size)}
-                      className="flex h-5 w-5 items-center justify-center rounded border border-transparent bg-[#12141a] transition-colors hover:border-white/20 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 cursor-pointer"
+                      className="flex h-6 w-6 items-center justify-center rounded border border-transparent bg-[#12141a] transition-colors hover:border-white/20 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 cursor-pointer"
                     >
                       <span
                         className="block rounded-[1px] bg-zinc-200"
@@ -102,12 +124,79 @@ export function ToolRail() {
             })}
           </div>
         </div>
+
+        {/* Shape Fill Mode (Outline vs Filled) */}
+        {showShapeOptions && (
+          <div className="flex w-full flex-col items-center gap-1">
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+              Shape
+            </span>
+            <div className="grid w-full grid-cols-2 gap-1">
+              <button
+                type="button"
+                data-testid="shape-mode-outline"
+                data-active={shapeFillMode === "outline"}
+                onClick={() => service.setShapeFillMode("outline")}
+                className="rounded border border-white/10 bg-[#12141a] py-1 text-[10px] text-zinc-400 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-300 cursor-pointer"
+              >
+                Line
+              </button>
+              <button
+                type="button"
+                data-testid="shape-mode-filled"
+                data-active={shapeFillMode === "filled"}
+                onClick={() => service.setShapeFillMode("filled")}
+                className="rounded border border-white/10 bg-[#12141a] py-1 text-[10px] text-zinc-400 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-300 cursor-pointer"
+              >
+                Fill
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active Selection Quick Controls */}
+        {selection && (
+          <div className="flex w-full flex-col items-center gap-1 rounded border border-sky-400/25 bg-sky-500/8 p-1">
+            <span className="font-mono text-[9px] text-sky-300">
+              {selection.width}×{selection.height}
+            </span>
+            <div className="flex items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => service.cropCanvas()}
+                    aria-label="Crop to Selection"
+                  >
+                    <Crop className="h-3 w-3 text-sky-300" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Crop to Selection</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => service.deleteSelection()}
+                    aria-label="Delete Selected Pixels"
+                  >
+                    <Trash2 className="h-3 w-3 text-rose-400" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Clear Selected Pixels (Del)</TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom: Primary / Secondary Color Swatches + Swap */}
       <div className="flex flex-col items-center gap-2">
         <div className="relative h-11 w-11">
-          {/* Secondary Color (Back-right) */}
           <Tooltip>
             <TooltipTrigger asChild>
               <div
@@ -126,7 +215,6 @@ export function ToolRail() {
             </TooltipContent>
           </Tooltip>
 
-          {/* Primary Color (Front-left) */}
           <Tooltip>
             <TooltipTrigger asChild>
               <div

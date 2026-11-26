@@ -1,9 +1,11 @@
-import type { DirtyRect, Point, RGBA } from "@/types/editor";
+import type { DirtyRect, Point, RGBA, SelectionRect } from "@/types/editor";
 import type { PixelDocument } from "@/core/document/PixelDocument";
+import type { PixelBuffer } from "@/core/document/PixelBuffer";
 import type { ViewportTransform } from "@/core/canvas/ViewportTransform";
 import { clampDirtyRect, getDirtyRectSize, mergeDirtyRects } from "@/core/canvas/dirtyRect";
 import { getSquareBrushOffsets } from "@/core/image-processing/bresenham";
 import { rgbaToCss } from "@/core/image-processing/color";
+import { compositeLayers, compositeOverlayBuffer } from "@/core/image-processing/transforms";
 
 export interface CursorOverlayState {
   pixel: Point | null;
@@ -17,9 +19,9 @@ const CHECKER_TILE_PX = 8;
 
 /**
  * HTML5 Canvas 2D Rendering Engine.
- * - Offscreen canvas composites pixel art at native 1:1 resolution.
+ * - Offscreen canvas composites active frame layers, Onion Skin ghosts, and transient tool previews.
  * - Display canvas draws with imageSmoothingEnabled = false (crisp nearest-neighbor).
- * - Overlay canvas renders pixel grid & brush cursor without touching pixel data.
+ * - Overlay canvas renders pixel grid, selection marching-ants box, and brush cursor preview.
  * - Driven by dirty flags + requestAnimationFrame (0% idle CPU usage).
  */
 export class RenderingEngine {
@@ -35,11 +37,15 @@ export class RenderingEngine {
   private compositeCtx: CanvasRenderingContext2D | null = null;
   private compositeImageData: ImageData | null = null;
 
+  private previewBuffer: PixelBuffer | null = null;
+  private previewReplacesActiveLayer = false;
+
   private cssWidth = 0;
   private cssHeight = 0;
   private dpr = 1;
 
   private showGrid = true;
+  private selection: SelectionRect | null = null;
   private cursorOverlay: CursorOverlayState = {
     pixel: null,
     brushSize: 1,
@@ -90,8 +96,24 @@ export class RenderingEngine {
 
   setDocument(document: PixelDocument): void {
     this.document = document;
+    this.selection = document.selection;
     this.syncCompositeSurfaceSize();
     this.markAllDirty();
+  }
+
+  setPreviewBuffer(buffer: PixelBuffer | null, replaceActiveLayer = false): void {
+    this.previewBuffer = buffer;
+    this.previewReplacesActiveLayer = replaceActiveLayer;
+    this.fullCompositeDirty = true;
+    this.pendingDirtyRect = null;
+    this.compositeDirty = true;
+    this.viewportDirty = true;
+    this.scheduleRender();
+  }
+
+  setSelection(selection: SelectionRect | null): void {
+    this.selection = selection;
+    this.markOverlayDirty();
   }
 
   resizeViewport(cssWidth: number, cssHeight: number, dpr = 1): void {
@@ -223,34 +245,64 @@ export class RenderingEngine {
     }
   }
 
+  private blendTintedGhost(
+    out: Uint8ClampedArray,
+    ghostData: Uint8ClampedArray,
+    tintR: number,
+    tintG: number,
+    tintB: number,
+    opacity: number,
+  ): void {
+    const pixelCount = out.length / 4;
+    for (let i = 0; i < pixelCount; i++) {
+      const off = i * 4;
+      const ga = (ghostData[off + 3]! / 255) * opacity;
+      if (ga <= 0) continue;
+
+      const sr = Math.round(ghostData[off]! * 0.4 + tintR * 0.6);
+      const sg = Math.round(ghostData[off + 1]! * 0.4 + tintG * 0.6);
+      const sb = Math.round(ghostData[off + 2]! * 0.4 + tintB * 0.6);
+
+      const da = out[off + 3]! / 255;
+      const outA = ga + da * (1 - ga);
+      if (outA <= 0) continue;
+
+      out[off] = Math.round((sr * ga + out[off]! * da * (1 - ga)) / outA);
+      out[off + 1] = Math.round((sg * ga + out[off + 1]! * da * (1 - ga)) / outA);
+      out[off + 2] = Math.round((sb * ga + out[off + 2]! * da * (1 - ga)) / outA);
+      out[off + 3] = Math.round(outA * 255);
+    }
+  }
+
   private updateCompositeSurface(): void {
     this.syncCompositeSurfaceSize();
     if (!this.compositeCtx || !this.compositeImageData) return;
 
     const frame = this.document.getActiveFrame();
     const out = this.compositeImageData.data;
-    const pixelCount = this.document.width * this.document.height;
-
-    // Fast path: single visible full-opacity layer (standard Phase 1 case)
+    const width = this.document.width;
+    const height = this.document.height;
+    const onionEnabled = this.document.onionSkin.enabled && this.document.frames.length > 1;
     const visibleLayers = frame.layers.filter((l) => l.visible && l.opacity > 0);
-    if (visibleLayers.length === 0) {
-      out.fill(0);
-      this.compositeCtx.putImageData(this.compositeImageData, 0, 0);
-      return;
-    }
 
-    if (visibleLayers.length === 1 && visibleLayers[0]!.opacity >= 1) {
+    // Ultra-fast partial dirty-rect path when no onion skin, no preview overlay, and 1 opaque layer
+    if (
+      !onionEnabled &&
+      !this.previewBuffer &&
+      visibleLayers.length === 1 &&
+      visibleLayers[0]!.opacity >= 1
+    ) {
       const src = visibleLayers[0]!.buffer.data;
       const dirty =
         !this.fullCompositeDirty && this.pendingDirtyRect
-          ? clampDirtyRect(this.pendingDirtyRect, this.document.width, this.document.height)
+          ? clampDirtyRect(this.pendingDirtyRect, width, height)
           : null;
 
       if (dirty) {
         const { width: rw, height: rh } = getDirtyRectSize(dirty);
         const rowBytes = rw * 4;
         for (let row = 0; row < rh; row++) {
-          const offset = ((dirty.minY + row) * this.document.width + dirty.minX) * 4;
+          const offset = ((dirty.minY + row) * width + dirty.minX) * 4;
           out.set(src.subarray(offset, offset + rowBytes), offset);
         }
         this.compositeCtx.putImageData(
@@ -269,25 +321,43 @@ export class RenderingEngine {
       return;
     }
 
-    // General Porter-Duff source-over compositing for multi-layer readiness
+    // General path: Onion Skin + Multi-Layer Compositing + Transient Preview Buffer
     out.fill(0);
-    for (let li = 0; li < visibleLayers.length; li++) {
-      const layer = visibleLayers[li]!;
-      const src = layer.buffer.data;
-      const layerOpacity = layer.opacity;
-      for (let i = 0; i < pixelCount; i++) {
-        const off = i * 4;
-        const sa = (src[off + 3]! / 255) * layerOpacity;
-        if (sa <= 0) continue;
 
-        const da = out[off + 3]! / 255;
-        const outA = sa + da * (1 - sa);
-        if (outA <= 0) continue;
+    if (onionEnabled) {
+      const activeIdx = this.document.activeFrameIndex;
+      const baseOpacity = this.document.onionSkin.opacity;
 
-        out[off] = Math.round((src[off]! * sa + out[off]! * da * (1 - sa)) / outA);
-        out[off + 1] = Math.round((src[off + 1]! * sa + out[off + 1]! * da * (1 - sa)) / outA);
-        out[off + 2] = Math.round((src[off + 2]! * sa + out[off + 2]! * da * (1 - sa)) / outA);
-        out[off + 3] = Math.round(outA * 255);
+      // Previous frames tinted rose/crimson
+      for (let d = this.document.onionSkin.prevFrames; d >= 1; d--) {
+        const prevFrame = this.document.frames[activeIdx - d];
+        if (!prevFrame) continue;
+        const ghost = compositeLayers(prevFrame.layers, width, height);
+        this.blendTintedGhost(out, ghost.data, 244, 63, 94, baseOpacity / d);
+      }
+
+      // Next frames tinted sky cyan
+      for (let d = this.document.onionSkin.nextFrames; d >= 1; d--) {
+        const nextFrame = this.document.frames[activeIdx + d];
+        if (!nextFrame) continue;
+        const ghost = compositeLayers(nextFrame.layers, width, height);
+        this.blendTintedGhost(out, ghost.data, 56, 189, 248, baseOpacity / d);
+      }
+    }
+
+    const activeLayerId = this.document.activeLayerId;
+    for (let li = 0; li < frame.layers.length; li++) {
+      const layer = frame.layers[li]!;
+      if (!layer.visible || layer.opacity <= 0) continue;
+
+      const isTargetLayer = layer.id === activeLayerId;
+      if (isTargetLayer && this.previewBuffer && this.previewReplacesActiveLayer) {
+        compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
+      } else {
+        compositeOverlayBuffer(out, layer.buffer.data, layer.opacity);
+        if (isTargetLayer && this.previewBuffer) {
+          compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
+        }
       }
     }
 
@@ -308,7 +378,6 @@ export class RenderingEngine {
     const rw = Math.round(rect.width);
     const rh = Math.round(rect.height);
 
-    // Subtle elevation shadow behind the sprite canvas
     ctx.save();
     ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
     ctx.shadowBlur = 24;
@@ -317,7 +386,6 @@ export class RenderingEngine {
     ctx.fillRect(rx, ry, rw, rh);
     ctx.restore();
 
-    // Clip to sprite canvas bounds and render crisp dark checkerboard transparency
     ctx.save();
     ctx.beginPath();
     ctx.rect(rx, ry, rw, rh);
@@ -350,7 +418,6 @@ export class RenderingEngine {
       }
     }
 
-    // Crisp nearest-neighbor scaling of pixel art buffer
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       this.compositeCanvas,
@@ -365,7 +432,6 @@ export class RenderingEngine {
     );
     ctx.restore();
 
-    // Crisp outer canvas frame border
     ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
     ctx.lineWidth = 1;
     ctx.strokeRect(rx - 0.5, ry - 0.5, rw + 1, rh + 1);
@@ -384,7 +450,7 @@ export class RenderingEngine {
     const rect = this.viewport.getCanvasScreenRect(this.document.width, this.document.height);
     const zoom = this.viewport.zoom;
 
-    // 1. Pixel Grid (auto-hidden below zoom threshold for visual clarity)
+    // 1. Pixel Grid
     if (this.showGrid && zoom >= GRID_MIN_ZOOM) {
       const minVisCol = Math.max(0, Math.floor(-rect.x / zoom));
       const maxVisCol = Math.min(this.document.width, Math.ceil((this.cssWidth - rect.x) / zoom));
@@ -412,7 +478,28 @@ export class RenderingEngine {
       ctx.stroke();
     }
 
-    // 2. Pixel-aligned Brush Cursor Preview
+    // 2. Selection Box Overlay (Crisp dual-dash outline)
+    if (this.selection && this.selection.width > 0 && this.selection.height > 0) {
+      const sx = Math.round(rect.x + this.selection.x * zoom) + 0.5;
+      const sy = Math.round(rect.y + this.selection.y * zoom) + 0.5;
+      const sw = Math.max(1, Math.round(this.selection.width * zoom) - 1);
+      const sh = Math.max(1, Math.round(this.selection.height * zoom) - 1);
+
+      ctx.save();
+      ctx.fillStyle = "rgba(56, 189, 248, 0.08)";
+      ctx.fillRect(sx, sy, sw, sh);
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+      ctx.strokeRect(sx, sy, sw, sh);
+
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.restore();
+    }
+
+    // 3. Pixel-aligned Brush Cursor Preview
     const { pixel, brushSize, color, isEraser } = this.cursorOverlay;
     if (
       pixel &&
@@ -441,7 +528,6 @@ export class RenderingEngine {
           ctx.fillRect(sx, sy, sw, sh);
         }
 
-        // High-contrast dual outline (dark outer + bright inner) visible on any background
         ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
         ctx.lineWidth = 2;
         ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);

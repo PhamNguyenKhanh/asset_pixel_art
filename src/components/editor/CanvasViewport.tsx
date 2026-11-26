@@ -36,7 +36,11 @@ export function CanvasViewport() {
   }, [service]);
 
   const cursorClass =
-    activeTool === "eyedropper" ? "cursor-copy" : "cursor-crosshair";
+    activeTool === "eyedropper"
+      ? "cursor-copy"
+      : activeTool === "move"
+        ? "cursor-move"
+        : "cursor-crosshair";
 
   return (
     <main
@@ -52,12 +56,12 @@ export function CanvasViewport() {
       <canvas
         ref={displayCanvasRef}
         data-testid="display-canvas"
-        className="pixelated absolute inset-0 h-full w-full block"
+        className="pixelated absolute inset-0 block h-full w-full"
       />
       <canvas
         ref={overlayCanvasRef}
         data-testid="overlay-canvas"
-        className="pointer-events-none absolute inset-0 h-full w-full block"
+        className="pointer-events-none absolute inset-0 block h-full w-full"
       />
     </main>
   );

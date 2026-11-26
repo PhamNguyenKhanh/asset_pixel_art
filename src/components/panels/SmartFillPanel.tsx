@@ -21,11 +21,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const DISTRIBUTION_OPTIONS: readonly { id: ColorDistributionMode; label: string }[] = [
-  { id: "organic-cluster", label: "Organic Cluster" },
-  { id: "grain-linear", label: "Linear Grain" },
-  { id: "dithered-speckle", label: "Dithered Speckle" },
-  { id: "directional-band", label: "Directional Band" },
-  { id: "soft-gradient", label: "Soft Gradient" },
+  { id: "organic-cluster", label: "Cụm tự nhiên" },
+  { id: "grain-linear", label: "Vân thớ ngang" },
+  { id: "dithered-speckle", label: "Hạt đá dither" },
+  { id: "directional-band", label: "Dải ánh kim" },
+  { id: "soft-gradient", label: "Chuyển sắc mềm" },
 ];
 
 export function SmartFillPanel() {
@@ -88,7 +88,7 @@ export function SmartFillPanel() {
           <div className="flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5 text-amber-400" />
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              Intelligent Fill
+              Tô màu thông minh
             </h2>
           </div>
           {activeTool !== "bucket" && (
@@ -99,7 +99,7 @@ export function SmartFillPanel() {
               className="h-6 px-2 text-[10px] text-amber-300"
             >
               <PaintBucket className="h-3 w-3" />
-              <span>Use Bucket (B)</span>
+              <span>Chọn Đổ màu (B)</span>
             </Button>
           )}
         </div>
@@ -107,9 +107,9 @@ export function SmartFillPanel() {
         <div className="grid grid-cols-3 gap-1 rounded-md border border-white/10 bg-[#12141a] p-1">
           {(
             [
-              ["solid", "Solid"],
-              ["smart", "Smart Fill"],
-              ["material", "Material"],
+              ["solid", "Đơn sắc"],
+              ["smart", "Thông minh"],
+              ["material", "Vật liệu"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -129,11 +129,11 @@ export function SmartFillPanel() {
           ))}
         </div>
 
-        {/* Live Color Ramp Strip */}
+        {/* Dải màu xem trước */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-[10px] text-zinc-500">
-            <span>Generated Ramp</span>
-            <span>{config.mode === "solid" ? "1 solid color" : `${previewRamp.length} tones`}</span>
+            <span>Dải sắc độ sinh ra</span>
+            <span>{config.mode === "solid" ? "1 màu đơn" : `${previewRamp.length} sắc độ`}</span>
           </div>
           <div
             data-testid="smart-fill-ramp-preview"
@@ -157,11 +157,11 @@ export function SmartFillPanel() {
           className="flex flex-col gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 p-2.5"
         >
           <div className="flex items-center justify-between text-[11px]">
-            <span className="font-semibold text-amber-300">Live Preview Active</span>
+            <span className="font-semibold text-amber-300">Đang xem trước</span>
             <span className="font-mono text-zinc-300">{preview.pixelCount} px</span>
           </div>
           <p className="text-[10px] text-zinc-300">
-            Adjust sliders or seed below to refine live before committing.
+            Chỉnh thông số hoặc đổi hạt giống bên dưới để xem trực tiếp trước khi áp dụng.
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             <Button
@@ -172,7 +172,7 @@ export function SmartFillPanel() {
               onClick={() => service.cancelSmartFillPreview()}
             >
               <X className="h-3.5 w-3.5" />
-              <span>Cancel</span>
+              <span>Hủy</span>
             </Button>
             <Button
               type="button"
@@ -182,7 +182,7 @@ export function SmartFillPanel() {
               onClick={() => service.applySmartFillPreview()}
             >
               <Check className="h-3.5 w-3.5" />
-              <span>Apply</span>
+              <span>Áp dụng</span>
             </Button>
           </div>
         </section>
@@ -190,20 +190,20 @@ export function SmartFillPanel() {
 
       {config.mode === "solid" ? (
         <div className="rounded-md border border-white/8 bg-[#12141a] p-3 text-xs leading-relaxed text-zinc-400">
-          Classic single-color Bucket Fill. Switch to{" "}
-          <strong className="text-zinc-200">Smart Fill</strong> or{" "}
-          <strong className="text-zinc-200">Material</strong> for spatially structured pixel-art
-          color variations with non-destructive live preview.
+          Chế độ đổ 1 màu đồng nhất truyền thống. Chuyển sang{" "}
+          <strong className="text-zinc-200">Thông minh</strong> hoặc{" "}
+          <strong className="text-zinc-200">Vật liệu</strong> để tạo biến thiên sắc độ tự nhiên và
+          xem trước trực tiếp.
         </div>
       ) : (
         <>
-          {/* Context Integration Banner */}
+          {/* Đồng bộ ngữ cảnh */}
           <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-[#12141a] px-2.5 py-2">
             <div className="flex items-center gap-1.5 min-w-0">
               <Compass className="h-3.5 w-3.5 shrink-0 text-amber-400" />
               <div className="min-w-0">
                 <div className="truncate text-[11px] font-medium text-zinc-200">
-                  {activeProfile.label} Hints
+                  Gợi ý {activeProfile.label}
                 </div>
                 <div className="truncate text-[10px] text-zinc-500">
                   {activeProfile.fillHints.distribution}
@@ -218,18 +218,18 @@ export function SmartFillPanel() {
               onClick={() => service.syncSmartFillFromAssetContext()}
               className="h-6 px-2 text-[10px]"
             >
-              Sync
+              Đồng bộ
             </Button>
           </div>
 
-          {/* Material Preset Picker (Material Mode) */}
+          {/* Chọn mẫu vật liệu */}
           {config.mode === "material" && (
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
                   <SwatchBook className="h-3 w-3 text-zinc-400" />
                   <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-                    Material Preset
+                    Mẫu vật liệu
                   </h3>
                 </div>
                 <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 cursor-pointer">
@@ -243,7 +243,7 @@ export function SmartFillPanel() {
                     }
                     className="accent-amber-400"
                   />
-                  <span>Preset Colors</span>
+                  <span>Dùng màu mẫu</span>
                 </label>
               </div>
 
@@ -296,7 +296,7 @@ export function SmartFillPanel() {
               htmlFor="fill-distribution-select"
               className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400"
             >
-              Color Distribution
+              Phân bố màu
             </label>
             <select
               id="fill-distribution-select"
@@ -321,11 +321,11 @@ export function SmartFillPanel() {
           <section className="flex flex-col gap-2.5">
             {(
               [
-                ["Color Variation", "colorVariation", config.colorVariation],
-                ["Brightness Variation", "brightnessVariation", config.brightnessVariation],
-                ["Saturation Variation", "saturationVariation", config.saturationVariation],
-                ["Contrast", "contrast", config.contrast],
-                ["Texture Intensity", "textureIntensity", config.textureIntensity],
+                ["Biến thiên màu", "colorVariation", config.colorVariation],
+                ["Biến thiên độ sáng", "brightnessVariation", config.brightnessVariation],
+                ["Biến thiên bão hòa", "saturationVariation", config.saturationVariation],
+                ["Độ tương phản", "contrast", config.contrast],
+                ["Cường độ chất liệu", "textureIntensity", config.textureIntensity],
               ] as const
             ).map(([label, key, value]) => (
               <div key={key} className="flex flex-col gap-1">
@@ -348,10 +348,9 @@ export function SmartFillPanel() {
               </div>
             ))}
 
-            {/* Color Match Tolerance */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-zinc-400">Region Tolerance</span>
+                <span className="text-zinc-400">Ngưỡng khớp vùng</span>
                 <span className="font-mono text-zinc-200">{config.tolerance}</span>
               </div>
               <input
@@ -359,7 +358,7 @@ export function SmartFillPanel() {
                 min={0}
                 max={64}
                 value={config.tolerance}
-                aria-label="Region Tolerance"
+                aria-label="Ngưỡng khớp vùng"
                 data-testid="slider-tolerance"
                 onChange={(e) =>
                   service.setSmartFillConfig({ tolerance: Number(e.target.value) })
@@ -369,10 +368,9 @@ export function SmartFillPanel() {
             </div>
           </section>
 
-          {/* Preservation Toggles + Seed */}
           <section className="flex flex-col gap-2 border-t border-white/8 pt-2.5">
             <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer">
-              <span>Preserve Outlines</span>
+              <span>Giữ đường viền</span>
               <input
                 type="checkbox"
                 data-testid="toggle-preserve-outlines"
@@ -385,7 +383,7 @@ export function SmartFillPanel() {
             </label>
 
             <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer">
-              <span>Preserve Transparency</span>
+              <span>Giữ độ trong suốt</span>
               <input
                 type="checkbox"
                 data-testid="toggle-preserve-transparency"
@@ -399,7 +397,7 @@ export function SmartFillPanel() {
 
             <div className="flex items-center justify-between gap-2 pt-1">
               <label htmlFor="smart-fill-seed-input" className="text-xs text-zinc-400">
-                Seed
+                Hạt giống (Seed)
               </label>
               <div className="flex items-center gap-1">
                 <Input

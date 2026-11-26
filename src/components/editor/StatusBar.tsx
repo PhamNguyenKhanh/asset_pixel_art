@@ -5,15 +5,15 @@ import type { ToolId } from "@/types/editor";
 import { useEditorStore } from "@/stores/editorStore";
 
 const TOOL_LABELS: Record<ToolId, string> = {
-  pencil: "Pencil",
-  eraser: "Eraser",
-  bucket: "Bucket Fill",
-  eyedropper: "Color Picker",
-  line: "Line",
-  rectangle: "Rectangle",
-  ellipse: "Ellipse",
-  select: "Select",
-  move: "Move",
+  pencil: "Bút chì",
+  eraser: "Tẩy",
+  bucket: "Đổ màu",
+  eyedropper: "Hút màu",
+  line: "Đường thẳng",
+  rectangle: "Hình chữ nhật",
+  ellipse: "Hình elip",
+  select: "Chọn vùng",
+  move: "Di chuyển",
 };
 
 export function StatusBar() {
@@ -46,29 +46,29 @@ export function StatusBar() {
           <>
             <span className="h-3 w-px bg-white/10" />
             <span data-testid="selection-status" className="font-mono text-sky-300">
-              Sel: {docMeta.selection.width}×{docMeta.selection.height}
+              Chọn: {docMeta.selection.width}×{docMeta.selection.height}
             </span>
           </>
         )}
       </div>
 
       <div className="hidden items-center gap-2 text-zinc-500 lg:flex">
-        <span>Space + Drag: Pan</span>
+        <span>Space + Kéo: Di chuyển</span>
         <span>&bull;</span>
-        <span>Wheel: Zoom</span>
+        <span>Cuộn: Thu phóng</span>
         <span>&bull;</span>
-        <span>, / . : Frames</span>
+        <span>, / . : Chuyển khung</span>
         {lastSavedAt && (
           <>
             <span>&bull;</span>
-            <span className="text-emerald-400/80">Saved locally</span>
+            <span className="text-emerald-400/80">Đã lưu cục bộ</span>
           </>
         )}
       </div>
 
       <div className="flex items-center gap-2.5 font-mono">
         <span className="hidden text-zinc-400 sm:inline">
-          F{docMeta.activeFrameIndex + 1}/{docMeta.frameCount}
+          K{docMeta.activeFrameIndex + 1}/{docMeta.frameCount}
         </span>
         <span className="hidden h-3 w-px bg-white/10 sm:inline" />
         <span className="hidden max-w-[100px] truncate font-sans text-zinc-400 md:inline">

@@ -3,8 +3,8 @@ import type { AssetContextProfile, BuiltInAssetTypeId } from "@/types/assetConte
 export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   {
     id: "custom",
-    label: "Custom",
-    description: "Neutral freeform workspace with balanced color, fill, and lighting defaults.",
+    label: "Tùy chỉnh",
+    description: "Không gian vẽ tự do với thông số màu, tô và ánh sáng cân bằng.",
     recommendedSizes: [16, 32, 64, 128],
     suggestedPalettes: [
       {
@@ -38,8 +38,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "character",
-    label: "Character",
-    description: "Humanoids and heroes — skin/cloth ramps, rounded body shading, and cycle presets.",
+    label: "Nhân vật",
+    description: "Nhân vật game — gợi ý màu da/trang phục, đổ bóng khối tròn và mẫu chuyển động.",
     recommendedSizes: [32, 48, 64],
     suggestedPalettes: [
       {
@@ -80,8 +80,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "animal",
-    label: "Animal",
-    description: "Creatures, pets, and monsters — fur/scale palettes and organic cluster shading.",
+    label: "Động vật",
+    description: "Sinh vật, thú cưng và quái vật — bảng màu tự nhiên và đổ bóng mềm.",
     recommendedSizes: [32, 64],
     suggestedPalettes: [
       {
@@ -121,8 +121,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "tree",
-    label: "Tree",
-    description: "Trees and canopy clusters — natural foliage ramps, bark grain, and leaf-clump lighting.",
+    label: "Cây cối",
+    description: "Cây và tán lá — dải màu thiên nhiên, vân vỏ gỗ và ánh sáng theo cụm lá.",
     recommendedSizes: [64, 96, 128],
     suggestedPalettes: [
       {
@@ -161,8 +161,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "plant",
-    label: "Plant",
-    description: "Bushes, flowers, crops, and herbs — vibrant botanical hues and leafy texture fill.",
+    label: "Thực vật",
+    description: "Bụi cây, hoa và cây trồng — sắc xanh tươi tắn và chất liệu lá tự nhiên.",
     recommendedSizes: [16, 32, 48],
     suggestedPalettes: [
       {
@@ -196,8 +196,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "building",
-    label: "Building",
-    description: "Houses, castles, and walls — timber/stone/brick palettes and planar face shading.",
+    label: "Công trình",
+    description: "Nhà cửa, lâu đài và tường — bảng màu gỗ/đá/gạch và đổ bóng mặt phẳng.",
     recommendedSizes: [64, 128, 256],
     suggestedPalettes: [
       {
@@ -236,8 +236,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "environment",
-    label: "Environment",
-    description: "Tiles, terrain, rocks, and water — seamless earth/stone/turf palettes and ambient occlusion.",
+    label: "Môi trường",
+    description: "Ô địa hình, đá, nước và cảnh quan — bảng màu đất/cỏ và bóng tiếp xúc.",
     recommendedSizes: [16, 32, 64, 128],
     suggestedPalettes: [
       {
@@ -271,8 +271,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "weapon",
-    label: "Weapon",
-    description: "Swords, bows, staves, and firearms — high-contrast metallic gleams and crisp edges.",
+    label: "Vũ khí",
+    description: "Kiếm, cung, trượng và súng — ánh kim tương phản cao và cạnh sắc nét.",
     recommendedSizes: [16, 32, 48],
     suggestedPalettes: [
       {
@@ -311,8 +311,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "item",
-    label: "Item",
-    description: "Potions, coins, gems, and RPG icons — high-readability colors and punchy highlights.",
+    label: "Vật phẩm",
+    description: "Bình thuốc, xu, ngọc và biểu tượng RPG — màu sắc nổi bật, dễ nhận diện.",
     recommendedSizes: [16, 24, 32],
     suggestedPalettes: [
       {
@@ -346,8 +346,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "furniture",
-    label: "Furniture",
-    description: "Tables, chests, chairs, and props — rich wood grains, upholstery, and soft cast shadows.",
+    label: "Nội thất",
+    description: "Bàn ghế, rương và đạo cụ — vân gỗ tự nhiên và bóng đổ mặt phẳng.",
     recommendedSizes: [32, 48, 64],
     suggestedPalettes: [
       {
@@ -381,8 +381,8 @@ export const BUILTIN_ASSET_CONTEXT_PROFILES: readonly AssetContextProfile[] = [
   },
   {
     id: "vehicle",
-    label: "Vehicle",
-    description: "Cars, ships, mechs, and spaceships — painted hull metals, glass highlights, and sleek panels.",
+    label: "Phương tiện",
+    description: "Xe, tàu, mech và phi thuyền — lớp vỏ kim loại, kính và mảng cứng.",
     recommendedSizes: [32, 64, 128],
     suggestedPalettes: [
       {

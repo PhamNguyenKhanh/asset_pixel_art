@@ -137,11 +137,11 @@ export function ColorPanel() {
 
   return (
     <div data-testid="color-panel" className="flex flex-col gap-3.5">
-      {/* Color Picker Section */}
+      {/* Chọn màu */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Color Picker
+            Bảng chọn màu
           </h2>
           <div className="flex items-center gap-1.5">
             <div className="checkerboard-swatch h-4 w-7 overflow-hidden rounded border border-white/20">
@@ -336,13 +336,13 @@ export function ColorPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Recent Colors */}
+      {/* Màu gần đây */}
       <section className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Recent
+            Màu gần đây
           </h2>
-          <span className="text-[10px] text-zinc-500">L / R click</span>
+          <span className="text-[10px] text-zinc-500">Trái / Phải</span>
         </div>
         <div className="grid grid-cols-6 gap-1.5">
           {recentColors.map((color, idx) => (
@@ -374,7 +374,7 @@ export function ColorPanel() {
           <section className="flex flex-col gap-1.5" data-testid="color-panel-context-suggestions">
             <div className="flex items-center justify-between">
               <h2 className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
-                {activeContextProfile.label} Suggestions
+                Gợi ý {activeContextProfile.label}
               </h2>
               <span className="text-[10px] text-zinc-500">
                 {activeContextProfile.suggestedPalettes[0].name}
@@ -405,10 +405,10 @@ export function ColorPanel() {
         </>
       )}
 
-      {/* Default Studio Palette */}
+      {/* Bảng màu chuẩn */}
       <section className="flex flex-col gap-1.5">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          Studio Palette
+          Bảng màu chuẩn
         </h2>
         <div className="grid grid-cols-6 gap-1.5" data-testid="studio-palette">
           {DEFAULT_STUDIO_PALETTE.map((color) => {
@@ -434,11 +434,11 @@ export function ColorPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Custom Palettes */}
+      {/* Bảng màu riêng */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Custom Palettes
+            Bảng màu riêng
           </h2>
           <Button
             variant="ghost"
@@ -448,7 +448,7 @@ export function ColorPanel() {
             data-testid="new-palette-btn"
           >
             <Plus className="h-3 w-3 text-amber-400" />
-            <span>New</span>
+            <span>Mới</span>
           </Button>
         </div>
 
@@ -458,18 +458,18 @@ export function ColorPanel() {
               autoFocus
               value={newPaletteName}
               onChange={(e) => setNewPaletteName(e.target.value)}
-              placeholder="Palette name..."
+              placeholder="Tên bảng màu..."
               className="h-7 font-sans text-xs"
             />
             <Button type="submit" size="sm" className="h-7 px-2">
-              Add
+              Thêm
             </Button>
           </form>
         )}
 
         {customPalettes.length === 0 ? (
           <p className="text-[11px] text-zinc-500">
-            Create custom palettes to store your sprite color ramps locally.
+            Tạo bảng màu riêng để lưu các dải màu của bạn ngay trên trình duyệt.
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">

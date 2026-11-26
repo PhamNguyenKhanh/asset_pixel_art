@@ -112,8 +112,8 @@ export function buildSpriteSheet(
   const metadata: SpriteSheetMetadata = {
     frames: frameEntries,
     meta: {
-      app: "Pixel Art Studio",
-      version: "0.2.0",
+      app: "Yui Art Studio",
+      version: "1.0.0",
       image: `${safeBaseName}_sheet.png`,
       format: "RGBA8888",
       size: { w: sheetW, h: sheetH },

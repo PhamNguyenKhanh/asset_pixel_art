@@ -67,7 +67,7 @@ export function ContextPanel() {
           <div className="flex items-center gap-1.5">
             <Compass className="h-3.5 w-3.5 text-amber-400" />
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              Asset Context
+              Ngữ cảnh Asset
             </h2>
           </div>
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
@@ -104,19 +104,19 @@ export function ContextPanel() {
         </div>
 
         <p className="text-[10px] text-zinc-500">
-          Optional &amp; non-destructive — switching context never alters drawn pixels.
+          Tùy chọn &amp; không phá hủy — đổi ngữ cảnh không bao giờ làm thay đổi pixel đã vẽ.
         </p>
       </section>
 
       <div className="h-px bg-white/8" />
 
-      {/* Context-Aware Suggested Palettes */}
+      {/* Bảng màu gợi ý */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Suggested Palettes
+            Bảng màu gợi ý
           </h3>
-          <span className="text-[10px] text-zinc-500">L / R click</span>
+          <span className="text-[10px] text-zinc-500">Trái / Phải</span>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -139,7 +139,7 @@ export function ContextPanel() {
                   className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-zinc-400 hover:bg-white/8 hover:text-amber-300 cursor-pointer"
                 >
                   <BookmarkPlus className="h-3 w-3" />
-                  <span>Save</span>
+                  <span>Lưu</span>
                 </button>
               </div>
               <div className="grid grid-cols-8 gap-1">
@@ -166,13 +166,13 @@ export function ContextPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Recommended Material Presets (feeds Phase 4 Smart Fill) */}
+      {/* Vật liệu gợi ý */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Material Presets
+            Vật liệu gợi ý
           </h3>
-          <span className="text-[10px] text-zinc-500">Smart Fill Ready</span>
+          <span className="text-[10px] text-zinc-500">Tô thông minh</span>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -225,38 +225,38 @@ export function ContextPanel() {
           <div className="flex items-center gap-1.5">
             <Sun className="h-3.5 w-3.5 text-amber-400" />
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              Shading Profile
+              Cấu hình đổ bóng
             </h3>
           </div>
-          <span className="text-[10px] text-zinc-500">Lighting Hints</span>
+          <span className="text-[10px] text-zinc-500">Ánh sáng</span>
         </div>
         <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px]">
-          <dt className="text-zinc-500">Surface</dt>
+          <dt className="text-zinc-500">Bề mặt</dt>
           <dd className="text-right text-zinc-200">
             {activeProfile.lightingHints.surfaceLabel}
           </dd>
-          <dt className="text-zinc-500">Ramp Steps</dt>
+          <dt className="text-zinc-500">Số dải sáng</dt>
           <dd className="text-right font-mono text-zinc-200">
-            {activeProfile.lightingHints.shadingSteps} bands
+            {activeProfile.lightingHints.shadingSteps} dải
           </dd>
-          <dt className="text-zinc-500">Shadow Bias</dt>
+          <dt className="text-zinc-500">Độ đậm bóng</dt>
           <dd className="text-right font-mono text-zinc-200">
             {Math.round(activeProfile.lightingHints.defaultShadowIntensity * 100)}%
           </dd>
-          <dt className="text-zinc-500">Hue Shift</dt>
+          <dt className="text-zinc-500">Dịch sắc độ</dt>
           <dd className="text-right font-mono text-zinc-200">
             {Math.round(activeProfile.lightingHints.hueShiftStrength * 100)}%
           </dd>
         </dl>
       </section>
 
-      {/* Animation Preset Helpers */}
+      {/* Mẫu chuyển động */}
       {activeProfile.animationHints.length > 0 && (
         <section className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
             <Film className="h-3.5 w-3.5 text-zinc-400" />
             <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              Animation Presets
+              Mẫu hoạt ảnh
             </h3>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -270,7 +270,7 @@ export function ContextPanel() {
                     {hint.name}
                   </div>
                   <div className="truncate text-[10px] text-zinc-500">
-                    {hint.frameCount} frames &bull; {hint.fps} FPS
+                    {hint.frameCount} khung &bull; {hint.fps} FPS
                   </div>
                 </div>
                 <Button
@@ -280,7 +280,7 @@ export function ContextPanel() {
                   onClick={() => service.applyAnimationPreset(hint.id)}
                   className="h-6 px-2 text-[10px]"
                 >
-                  Apply
+                  Áp dụng
                 </Button>
               </div>
             ))}

@@ -72,9 +72,9 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="new-canvas-dialog">
         <DialogHeader>
-          <DialogTitle>Create New Canvas</DialogTitle>
+          <DialogTitle>Tạo khung vẽ mới</DialogTitle>
           <DialogDescription>
-            Choose a common pixel art preset or specify custom dimensions (up to{" "}
+            Chọn kích thước phổ biến hoặc nhập kích thước tùy chỉnh (tối đa{" "}
             {CANVAS_LIMITS.HARD_MAX}×{CANVAS_LIMITS.HARD_MAX}).
           </DialogDescription>
         </DialogHeader>
@@ -82,25 +82,25 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="sprite-name-input" className="text-xs font-medium text-zinc-300">
-              Sprite Name
+              Tên tác phẩm
             </label>
             <Input
               id="sprite-name-input"
               data-testid="sprite-name-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Untitled Sprite"
+              placeholder="Sprite chưa đặt tên"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-zinc-300">
-                Asset Type <span className="font-normal text-zinc-500">(optional)</span>
+                Loại Asset <span className="font-normal text-zinc-500">(tùy chọn)</span>
               </span>
               {selectedProfile && selectedProfile.id !== "custom" && (
                 <span className="text-[10px] text-amber-300/80">
-                  Suggested: {selectedProfile.recommendedSizes.join(" / ")}px
+                  Gợi ý: {selectedProfile.recommendedSizes.join(" / ")}px
                 </span>
               )}
             </div>
@@ -127,7 +127,7 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-zinc-300">Presets</span>
+            <span className="text-xs font-medium text-zinc-300">Kích thước mẫu</span>
             <div className="grid grid-cols-5 gap-1.5">
               {CANVAS_PRESETS.map((size) => {
                 const isSelected = width === size && height === size;
@@ -153,7 +153,7 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
           <div className="flex items-end gap-2">
             <div className="flex flex-1 flex-col gap-1.5">
               <label htmlFor="canvas-width-input" className="text-xs font-medium text-zinc-300">
-                Width (px)
+                Rộng (px)
               </label>
               <Input
                 id="canvas-width-input"
@@ -179,7 +179,7 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
 
             <div className="flex flex-1 flex-col gap-1.5">
               <label htmlFor="canvas-height-input" className="text-xs font-medium text-zinc-300">
-                Height (px)
+                Cao (px)
               </label>
               <Input
                 id="canvas-height-input"
@@ -208,14 +208,14 @@ export function NewCanvasDialog({ open, onOpenChange }: NewCanvasDialogProps) {
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              Hủy
             </Button>
             <Button
               type="submit"
               disabled={!validation.valid}
               data-testid="confirm-new-canvas-btn"
             >
-              Create Canvas
+              Tạo khung vẽ
             </Button>
           </DialogFooter>
         </form>

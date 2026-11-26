@@ -103,20 +103,20 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="export-dialog" className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Export Sprite &amp; Project</DialogTitle>
+          <DialogTitle>Xuất ảnh &amp; Dự án</DialogTitle>
           <DialogDescription>
-            All exports run 100% locally in your browser with crisp nearest-neighbor pixel scaling.
+            Toàn bộ quá trình xuất chạy trực tiếp trên trình duyệt với phóng to sắc nét nearest-neighbor.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Format Tabs */}
+        {/* Chọn định dạng */}
         <div className="grid grid-cols-4 gap-1 rounded-md border border-white/10 bg-[#12141a] p-1">
           {(
             [
               ["png", "PNG", ImageIcon],
               ["gif", "GIF", Film],
               ["spritesheet", "Sheet", Grid],
-              ["project", "Project", FileJson],
+              ["project", "Dự án", FileJson],
             ] as const
           ).map(([id, label, Icon]) => (
             <button
@@ -140,9 +140,9 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
         {tab !== "project" && (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-zinc-300">Integer Scale (Nearest-Neighbor)</span>
+              <span className="font-medium text-zinc-300">Tỷ lệ phóng nguyên (Nearest-Neighbor)</span>
               <span className="font-mono text-zinc-400">
-                {docMeta.width * scale}×{docMeta.height * scale} px / frame
+                {docMeta.width * scale}×{docMeta.height * scale} px / khung
               </span>
             </div>
             <div className="grid grid-cols-4 gap-1.5">
@@ -167,22 +167,22 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
         {/* Format-Specific Options */}
         {tab === "png" && (
           <p className="rounded-md border border-white/8 bg-[#12141a] p-3 text-xs text-zinc-400">
-            Exports active frame{" "}
-            <span className="font-mono text-zinc-200">#{docMeta.activeFrameIndex + 1}</span> with
-            all visible layers composited and full RGBA alpha transparency.
+            Xuất khung hình hiện tại{" "}
+            <span className="font-mono text-zinc-200">#{docMeta.activeFrameIndex + 1}</span> đã gộp
+            tất cả các lớp đang hiển thị, giữ nguyên kênh trong suốt RGBA.
           </p>
         )}
 
         {tab === "gif" && (
           <div className="flex flex-col gap-2.5 rounded-md border border-white/8 bg-[#12141a] p-3">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-zinc-300">Frames</span>
+              <span className="text-zinc-300">Số khung hình</span>
               <span className="font-mono text-zinc-200">
-                {docMeta.frameCount} frame(s) @ {docMeta.fps} FPS
+                {docMeta.frameCount} khung @ {docMeta.fps} FPS
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-zinc-300">Looping</span>
+              <span className="text-zinc-300">Lặp lại</span>
               <div className="flex gap-1">
                 <button
                   type="button"
@@ -193,7 +193,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                       : "bg-[#1c1f27] text-zinc-400"
                   }`}
                 >
-                  Loop Forever
+                  Lặp vô hạn
                 </button>
                 <button
                   type="button"
@@ -204,7 +204,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                       : "bg-[#1c1f27] text-zinc-400"
                   }`}
                 >
-                  Play Once
+                  Chạy 1 lần
                 </button>
               </div>
             </div>
@@ -214,20 +214,26 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
         {tab === "spritesheet" && (
           <div className="flex flex-col gap-3 rounded-md border border-white/8 bg-[#12141a] p-3">
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-zinc-300">Layout</span>
+              <span className="text-xs font-medium text-zinc-300">Bố cục</span>
               <div className="grid grid-cols-3 gap-1.5">
-                {(["horizontal", "vertical", "grid"] as const).map((layout) => (
+                {(
+                  [
+                    ["horizontal", "Ngang"],
+                    ["vertical", "Dọc"],
+                    ["grid", "Lưới"],
+                  ] as const
+                ).map(([layout, label]) => (
                   <button
                     key={layout}
                     type="button"
                     onClick={() => setSheetLayout(layout)}
-                    className={`rounded border py-1 text-xs capitalize cursor-pointer ${
+                    className={`rounded border py-1 text-xs cursor-pointer ${
                       sheetLayout === layout
                         ? "border-amber-400 bg-amber-500/20 text-amber-300"
                         : "border-white/10 bg-[#181b22] text-zinc-400"
                     }`}
                   >
-                    {layout}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -236,7 +242,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
             <div className="grid grid-cols-2 gap-3">
               {sheetLayout === "grid" && (
                 <label className="flex flex-col gap-1 text-xs">
-                  <span className="text-zinc-400">Columns</span>
+                  <span className="text-zinc-400">Số cột</span>
                   <Input
                     type="number"
                     min={1}
@@ -247,7 +253,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                 </label>
               )}
               <label className="flex flex-col gap-1 text-xs">
-                <span className="text-zinc-400">Padding (px)</span>
+                <span className="text-zinc-400">Khoảng đệm (px)</span>
                 <Input
                   type="number"
                   min={0}
@@ -265,23 +271,23 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                 onChange={(e) => setIncludeJson(e.target.checked)}
                 className="accent-amber-400"
               />
-              <span>Also download JSON metadata (Unity / Phaser / Aseprite-style frames)</span>
+              <span>Tải kèm tệp JSON metadata (chuẩn Unity / Phaser / Aseprite)</span>
             </label>
           </div>
         )}
 
         {tab === "project" && (
           <p className="rounded-md border border-white/8 bg-[#12141a] p-3 text-xs text-zinc-400">
-            Saves your complete workspace ({docMeta.frameCount} frame(s), {docMeta.layerCount}{" "}
-            layer(s), custom palettes) into a local{" "}
-            <code className="font-mono text-zinc-200">{safeSlug}.pxs.json</code> file so you can
-            reopen and continue editing later.
+            Lưu toàn bộ dự án ({docMeta.frameCount} khung, {docMeta.layerCount} lớp, bảng màu riêng,
+            cấu hình ánh sáng) thành tệp cục bộ{" "}
+            <code className="font-mono text-zinc-200">{safeSlug}.pxs.json</code> để mở lại chỉnh
+            sửa sau.
           </p>
         )}
 
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            Hủy
           </Button>
           <Button
             type="button"
@@ -290,7 +296,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
             data-testid="confirm-export-btn"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>{busy ? "Exporting..." : "Download"}</span>
+            <span>{busy ? "Đang xuất..." : "Tải xuống"}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

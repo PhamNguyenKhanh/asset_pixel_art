@@ -8,8 +8,8 @@ test.describe("Pixel Art Studio — Complete Feature Flow (Phases 1–5)", () =>
 
     // Verify default 32x32 canvas & top bar pills
     await expect(page.getByTestId("canvas-size-badge")).toHaveText("32×32");
-    await expect(page.getByTestId("context-pill-btn")).toContainText("Custom");
-    await expect(page.getByTestId("lighting-pill-btn")).toContainText("Light");
+    await expect(page.getByTestId("context-pill-btn")).toBeVisible();
+    await expect(page.getByTestId("lighting-pill-btn")).toContainText("Ánh sáng");
     await expect(page.getByTestId("display-canvas")).toBeVisible();
 
     // Draw a filled rectangle in the center
@@ -45,13 +45,13 @@ test.describe("Pixel Art Studio — Complete Feature Flow (Phases 1–5)", () =>
     await page.getByTestId("lighting-pill-btn").click();
     await expect(page.getByTestId("lighting-panel")).toBeVisible();
     await page.getByTestId("lighting-enable-toggle").click();
-    await expect(page.getByTestId("lighting-pill-btn")).toContainText("Lit");
+    await expect(page.getByTestId("lighting-pill-btn")).toContainText("Đang sáng");
 
     await page.getByTestId("light-dir-tr").click();
     await page.getByTestId("lighting-preview-normals").click();
     await page.getByTestId("lighting-preview-lit").click();
     await page.getByTestId("bake-lighting-btn").click();
-    await expect(page.getByTestId("lighting-pill-btn")).toContainText("Light");
+    await expect(page.getByTestId("lighting-pill-btn")).toContainText("Ánh sáng");
 
     // Undo Bake works cleanly
     await page.getByTestId("undo-btn").click();

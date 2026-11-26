@@ -30,15 +30,15 @@ interface ToolItem {
 }
 
 const TOOL_ITEMS: readonly ToolItem[] = [
-  { id: "pencil", label: "Pencil", shortcut: "P", icon: Pencil },
-  { id: "eraser", label: "Eraser", shortcut: "E", icon: Eraser },
-  { id: "bucket", label: "Bucket Fill", shortcut: "B", icon: PaintBucket },
-  { id: "eyedropper", label: "Color Picker", shortcut: "I", icon: Pipette },
-  { id: "line", label: "Line (Shift: 45°)", shortcut: "L", icon: Minus },
-  { id: "rectangle", label: "Rectangle (Shift: Square)", shortcut: "U", icon: Square },
-  { id: "ellipse", label: "Ellipse (Shift: Circle)", shortcut: "O", icon: Circle },
-  { id: "select", label: "Rectangular Select", shortcut: "M", icon: BoxSelect },
-  { id: "move", label: "Move Layer / Selection", shortcut: "V", icon: Move },
+  { id: "pencil", label: "Bút chì", shortcut: "P", icon: Pencil },
+  { id: "eraser", label: "Tẩy", shortcut: "E", icon: Eraser },
+  { id: "bucket", label: "Đổ màu / Tô thông minh", shortcut: "B", icon: PaintBucket },
+  { id: "eyedropper", label: "Hút màu", shortcut: "I", icon: Pipette },
+  { id: "line", label: "Đường thẳng (Giữ Shift: 45°)", shortcut: "L", icon: Minus },
+  { id: "rectangle", label: "Hình chữ nhật (Giữ Shift: Vuông)", shortcut: "U", icon: Square },
+  { id: "ellipse", label: "Hình elip (Giữ Shift: Tròn)", shortcut: "O", icon: Circle },
+  { id: "select", label: "Chọn vùng chữ nhật", shortcut: "M", icon: BoxSelect },
+  { id: "move", label: "Di chuyển lớp / vùng chọn", shortcut: "V", icon: Move },
 ];
 
 const BRUSH_SIZES = [1, 2, 3, 4] as const;
@@ -60,7 +60,7 @@ export function ToolRail() {
 
   return (
     <aside className="flex w-[86px] shrink-0 flex-col items-center justify-between border-r border-white/8 bg-[#181b22] px-1.5 py-2.5 select-none">
-      {/* Top: Piskel-style 2-column Tool Grid + Contextual Options */}
+      {/* Trên: Lưới công cụ 2 cột + Tùy chọn nhanh */}
       <div className="flex w-full flex-col items-center gap-3">
         <div className="grid grid-cols-2 gap-1">
           {TOOL_ITEMS.map((tool) => {
@@ -94,10 +94,10 @@ export function ToolRail() {
 
         <div className="h-px w-full bg-white/8" />
 
-        {/* Brush Size Selector */}
+        {/* Cỡ cọ */}
         <div className="flex flex-col items-center gap-1">
           <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-            Brush
+            Cỡ cọ
           </span>
           <div className="grid grid-cols-2 gap-1">
             {BRUSH_SIZES.map((size) => {
@@ -110,7 +110,7 @@ export function ToolRail() {
                       type="button"
                       data-active={isActive}
                       data-testid={`brush-size-${size}`}
-                      aria-label={`Brush size ${size}px`}
+                      aria-label={`Cỡ cọ ${size}px`}
                       onClick={() => service.setBrushSize(size)}
                       className="flex h-6 w-6 items-center justify-center rounded border border-transparent bg-[#12141a] transition-colors hover:border-white/20 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 cursor-pointer"
                     >
@@ -121,7 +121,7 @@ export function ToolRail() {
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">
-                    Brush Size: {size}px ([ / ])
+                    Cỡ cọ: {size}px ([ / ])
                   </TooltipContent>
                 </Tooltip>
               );
@@ -129,18 +129,18 @@ export function ToolRail() {
           </div>
         </div>
 
-        {/* Bucket Fill Mode Quick Toggle (Solid / Smart / Material) */}
+        {/* Chế độ Đổ màu nhanh */}
         {showFillOptions && (
           <div className="flex w-full flex-col items-center gap-1">
             <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-              Fill
+              Kiểu tô
             </span>
             <div className="flex w-full flex-col gap-1">
               {(
                 [
-                  ["solid", "Solid"],
-                  ["smart", "Smart"],
-                  ["material", "Mat"],
+                  ["solid", "Đơn sắc"],
+                  ["smart", "Thông minh"],
+                  ["material", "Vật liệu"],
                 ] as const
               ).map(([modeId, label]) => (
                 <button
@@ -164,11 +164,11 @@ export function ToolRail() {
           </div>
         )}
 
-        {/* Shape Fill Mode (Outline vs Filled) */}
+        {/* Kiểu hình (Viền / Đặc) */}
         {showShapeOptions && (
           <div className="flex w-full flex-col items-center gap-1">
             <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
-              Shape
+              Hình khối
             </span>
             <div className="grid w-full grid-cols-2 gap-1">
               <button
@@ -178,7 +178,7 @@ export function ToolRail() {
                 onClick={() => service.setShapeFillMode("outline")}
                 className="rounded border border-white/10 bg-[#12141a] py-1 text-[10px] text-zinc-400 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-300 cursor-pointer"
               >
-                Line
+                Viền
               </button>
               <button
                 type="button"
@@ -187,13 +187,13 @@ export function ToolRail() {
                 onClick={() => service.setShapeFillMode("filled")}
                 className="rounded border border-white/10 bg-[#12141a] py-1 text-[10px] text-zinc-400 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-300 cursor-pointer"
               >
-                Fill
+                Đặc
               </button>
             </div>
           </div>
         )}
 
-        {/* Active Selection Quick Controls */}
+        {/* Thao tác nhanh vùng chọn */}
         {selection && (
           <div className="flex w-full flex-col items-center gap-1 rounded border border-sky-400/25 bg-sky-500/8 p-1">
             <span className="font-mono text-[9px] text-sky-300">
@@ -207,12 +207,12 @@ export function ToolRail() {
                     size="icon"
                     className="h-6 w-6"
                     onClick={() => service.cropCanvas()}
-                    aria-label="Crop to Selection"
+                    aria-label="Cắt theo vùng chọn"
                   >
                     <Crop className="h-3 w-3 text-sky-300" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Crop to Selection</TooltipContent>
+                <TooltipContent side="right">Cắt theo vùng chọn</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -221,26 +221,26 @@ export function ToolRail() {
                     size="icon"
                     className="h-6 w-6"
                     onClick={() => service.deleteSelection()}
-                    aria-label="Delete Selected Pixels"
+                    aria-label="Xóa pixel vùng chọn"
                   >
                     <Trash2 className="h-3 w-3 text-rose-400" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">Clear Selected Pixels (Del)</TooltipContent>
+                <TooltipContent side="right">Xóa pixel vùng chọn (Del)</TooltipContent>
               </Tooltip>
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom: Primary / Secondary Color Swatches + Swap */}
+      {/* Dưới: Ô màu chính / phụ + Đổi màu */}
       <div className="flex flex-col items-center gap-2">
         <div className="relative h-11 w-11">
           <Tooltip>
             <TooltipTrigger asChild>
               <div
                 data-testid="secondary-color-swatch"
-                title={`Secondary (Right-click): ${rgbaToHex(secondaryColor)}`}
+                title={`Màu phụ (Chuột phải): ${rgbaToHex(secondaryColor)}`}
                 className="checkerboard-swatch absolute bottom-0 right-0 h-7 w-7 overflow-hidden rounded border border-white/25 shadow"
               >
                 <div
@@ -250,7 +250,7 @@ export function ToolRail() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="right">
-              Secondary (Right-click): {rgbaToHex(secondaryColor, true)}
+              Màu phụ (Chuột phải): {rgbaToHex(secondaryColor, true)}
             </TooltipContent>
           </Tooltip>
 
@@ -258,7 +258,7 @@ export function ToolRail() {
             <TooltipTrigger asChild>
               <div
                 data-testid="primary-color-swatch"
-                title={`Primary (Left-click): ${rgbaToHex(primaryColor)}`}
+                title={`Màu chính (Chuột trái): ${rgbaToHex(primaryColor)}`}
                 className="checkerboard-swatch absolute left-0 top-0 h-7 w-7 overflow-hidden rounded border-2 border-zinc-100 shadow-md"
               >
                 <div
@@ -268,7 +268,7 @@ export function ToolRail() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="right">
-              Primary (Left-click): {rgbaToHex(primaryColor, true)}
+              Màu chính (Chuột trái): {rgbaToHex(primaryColor, true)}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -280,13 +280,13 @@ export function ToolRail() {
               size="icon"
               className="h-7 w-7"
               onClick={() => service.swapColors()}
-              aria-label="Swap Primary and Secondary Colors"
+              aria-label="Hoán đổi màu chính và phụ"
               data-testid="swap-colors-btn"
             >
               <ArrowLeftRight className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">Swap Colors (X)</TooltipContent>
+          <TooltipContent side="right">Đổi màu chính/phụ (X)</TooltipContent>
         </Tooltip>
       </div>
     </aside>

@@ -22,7 +22,7 @@ function SmartFillPreviewOverlayBar() {
     >
       <Sparkles className="h-3.5 w-3.5 text-amber-400" />
       <span className="text-xs font-medium text-zinc-100">
-        {preview.mode === "material" ? "Material Fill Preview" : "Smart Fill Preview"}
+        {preview.mode === "material" ? "Xem trước Tô vật liệu" : "Xem trước Tô thông minh"}
       </span>
       <span className="rounded bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300">
         {preview.pixelCount} px
@@ -39,7 +39,7 @@ function SmartFillPreviewOverlayBar() {
         onClick={() => service.randomizeSmartFillSeed()}
       >
         <Dices className="h-3.5 w-3.5 text-amber-400" />
-        <span>Seed</span>
+        <span>Đổi hạt</span>
       </Button>
 
       <Button
@@ -51,7 +51,7 @@ function SmartFillPreviewOverlayBar() {
         onClick={() => service.cancelSmartFillPreview()}
       >
         <X className="h-3.5 w-3.5" />
-        <span>Cancel</span>
+        <span>Hủy</span>
       </Button>
 
       <Button
@@ -63,7 +63,7 @@ function SmartFillPreviewOverlayBar() {
         onClick={() => service.applySmartFillPreview()}
       >
         <Check className="h-3.5 w-3.5" />
-        <span>Apply</span>
+        <span>Áp dụng</span>
       </Button>
     </div>
   );
@@ -76,6 +76,13 @@ function SurfaceMaskBanner() {
 
   if (!lightingEnabled || maskMode === "none") return null;
 
+  const maskLabels: Record<string, string> = {
+    raise: "Nâng cao +",
+    lower: "Hạ thấp -",
+    occlude: "Tạo bóng",
+    "erase-mask": "Xóa mặt nạ",
+  };
+
   return (
     <div
       data-testid="surface-mask-banner"
@@ -84,7 +91,7 @@ function SurfaceMaskBanner() {
     >
       <Mountain className="h-3.5 w-3.5 text-amber-400" />
       <span className="font-medium text-amber-200">
-        Surface Mask Brush: <strong className="uppercase">{maskMode}</strong>
+        Cọ mặt nạ bề mặt: <strong>{maskLabels[maskMode] ?? maskMode}</strong>
       </span>
       <Button
         type="button"
@@ -93,7 +100,7 @@ function SurfaceMaskBanner() {
         className="h-6 px-2 text-[10px]"
         onClick={() => service.setSurfaceMaskMode("none")}
       >
-        Done
+        Xong
       </Button>
     </div>
   );

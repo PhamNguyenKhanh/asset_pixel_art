@@ -58,7 +58,7 @@ export function TopActionBar({
 
   return (
     <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#181b22] px-3 select-none">
-      {/* Left: Brand + File Actions */}
+      {/* Trái: Thương hiệu + Tệp */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2">
           <div
@@ -71,7 +71,7 @@ export function TopActionBar({
             <span className="rounded-[1px] bg-amber-400" />
           </div>
           <span className="hidden text-xs font-semibold tracking-wide text-zinc-100 xl:inline">
-            PIXEL ART STUDIO
+            YUI ART STUDIO
           </span>
         </div>
 
@@ -107,7 +107,7 @@ export function TopActionBar({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              Asset Context: {activeContextProfile.label} (Click to change)
+              Ngữ cảnh Asset: {activeContextProfile.label} (Nhấn để đổi)
             </TooltipContent>
           </Tooltip>
 
@@ -127,11 +127,11 @@ export function TopActionBar({
                 }`}
               >
                 <Sun className="h-3 w-3" />
-                <span>{lightingEnabled ? "Lit" : "Light"}</span>
+                <span>{lightingEnabled ? "Đang sáng" : "Ánh sáng"}</span>
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              Dynamic Lighting Studio ({lightingEnabled ? "Active" : "Off"})
+              Phòng Ánh sáng động ({lightingEnabled ? "Đang bật" : "Đang tắt"})
             </TooltipContent>
           </Tooltip>
         </div>
@@ -146,10 +146,10 @@ export function TopActionBar({
                 data-testid="new-canvas-btn"
               >
                 <FilePlus2 className="h-3.5 w-3.5 text-amber-400" />
-                <span>New</span>
+                <span>Mới</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Create New Canvas</TooltipContent>
+            <TooltipContent>Tạo khung vẽ mới</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -161,10 +161,10 @@ export function TopActionBar({
                 data-testid="import-btn"
               >
                 <Upload className="h-3.5 w-3.5 text-zinc-300" />
-                <span>Import</span>
+                <span>Nhập</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Import PNG, JPG, WebP, GIF, or .pxs.json</TooltipContent>
+            <TooltipContent>Nhập PNG, JPG, WebP, GIF hoặc tệp .pxs.json</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -176,15 +176,15 @@ export function TopActionBar({
                 data-testid="export-btn"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span>Export</span>
+                <span>Xuất</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Export PNG, GIF, Sprite Sheet + JSON, or Project</TooltipContent>
+            <TooltipContent>Xuất PNG, GIF, Sprite Sheet + JSON hoặc tệp Dự án</TooltipContent>
           </Tooltip>
         </div>
       </div>
 
-      {/* Center: Undo/Redo + Transform + Zoom + Grid */}
+      {/* Giữa: Hoàn tác + Biến đổi + Thu phóng + Lưới */}
       <div className="flex items-center gap-1">
         <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
           <Tooltip>
@@ -195,13 +195,13 @@ export function TopActionBar({
                 className="h-7 w-7"
                 disabled={!docMeta.canUndo}
                 onClick={() => service.undo()}
-                aria-label="Undo"
+                aria-label="Hoàn tác"
                 data-testid="undo-btn"
               >
                 <Undo2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            <TooltipContent>Hoàn tác (Ctrl+Z)</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -212,19 +212,18 @@ export function TopActionBar({
                 className="h-7 w-7"
                 disabled={!docMeta.canRedo}
                 onClick={() => service.redo()}
-                aria-label="Redo"
+                aria-label="Làm lại"
                 data-testid="redo-btn"
               >
                 <Redo2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Redo (Ctrl+Shift+Z / Ctrl+Y)</TooltipContent>
+            <TooltipContent>Làm lại (Ctrl+Shift+Z / Ctrl+Y)</TooltipContent>
           </Tooltip>
         </div>
 
         <div className="mx-1 h-4 w-px bg-white/10" />
 
-        {/* Transform & Resize Group */}
         <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -233,13 +232,13 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => service.flipHorizontal()}
-                aria-label="Flip Horizontal"
+                aria-label="Lật ngang"
                 data-testid="flip-h-btn"
               >
                 <FlipHorizontal2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Flip Horizontal (Selection or Layer)</TooltipContent>
+            <TooltipContent>Lật ngang (Vùng chọn hoặc Lớp)</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -249,13 +248,13 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => service.flipVertical()}
-                aria-label="Flip Vertical"
+                aria-label="Lật dọc"
                 data-testid="flip-v-btn"
               >
                 <FlipVertical2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Flip Vertical (Selection or Layer)</TooltipContent>
+            <TooltipContent>Lật dọc (Vùng chọn hoặc Lớp)</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -265,13 +264,13 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => service.rotate90("cw")}
-                aria-label="Rotate 90° Clockwise"
+                aria-label="Xoay 90° theo chiều kim đồng hồ"
                 data-testid="rotate-cw-btn"
               >
                 <RotateCw className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Rotate Canvas 90° CW</TooltipContent>
+            <TooltipContent>Xoay khung vẽ 90°</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -281,19 +280,18 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={onOpenResizeCrop}
-                aria-label="Resize or Crop Canvas"
+                aria-label="Đổi kích thước hoặc Cắt khung vẽ"
                 data-testid="resize-crop-btn"
               >
                 <Scaling className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Resize / Scale / Crop Canvas</TooltipContent>
+            <TooltipContent>Đổi kích thước / Thu phóng / Cắt khung vẽ</TooltipContent>
           </Tooltip>
         </div>
 
         <div className="mx-1 h-4 w-px bg-white/10" />
 
-        {/* Zoom Controls */}
         <div className="flex items-center gap-0.5 rounded-md border border-white/8 bg-[#12141a] p-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -302,13 +300,13 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => service.zoomOut()}
-                aria-label="Zoom Out"
+                aria-label="Thu nhỏ"
                 data-testid="zoom-out-btn"
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom Out (-)</TooltipContent>
+            <TooltipContent>Thu nhỏ (-)</TooltipContent>
           </Tooltip>
 
           <span
@@ -325,13 +323,13 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => service.zoomIn()}
-                aria-label="Zoom In"
+                aria-label="Phóng to"
                 data-testid="zoom-in-btn"
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Zoom In (+)</TooltipContent>
+            <TooltipContent>Phóng to (+)</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -341,13 +339,13 @@ export function TopActionBar({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => service.fitViewport()}
-                aria-label="Fit Canvas to Viewport"
+                aria-label="Vừa khung nhìn"
                 data-testid="zoom-fit-btn"
               >
                 <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Fit Canvas (0)</TooltipContent>
+            <TooltipContent>Vừa khung nhìn (0)</TooltipContent>
           </Tooltip>
         </div>
 
@@ -358,18 +356,18 @@ export function TopActionBar({
               size="icon"
               data-active={showGrid}
               onClick={() => service.toggleGrid()}
-              aria-label="Toggle Pixel Grid"
+              aria-label="Bật/tắt lưới pixel"
               data-testid="grid-toggle-btn"
               className="h-8 w-8"
             >
               <Grid3x3 className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Toggle Pixel Grid (G)</TooltipContent>
+          <TooltipContent>Bật/tắt lưới pixel (G)</TooltipContent>
         </Tooltip>
       </div>
 
-      {/* Right: Shortcuts & Panel Toggles */}
+      {/* Phải: Phím tắt & Đóng/mở bảng */}
       <div className="flex items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
@@ -377,14 +375,14 @@ export function TopActionBar({
               variant="ghost"
               size="icon"
               onClick={onOpenShortcuts}
-              aria-label="Keyboard Shortcuts"
+              aria-label="Phím tắt"
               data-testid="shortcuts-btn"
               className="h-8 w-8"
             >
               <Keyboard className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Keyboard Shortcuts (?)</TooltipContent>
+          <TooltipContent>Bảng phím tắt (?)</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -394,7 +392,7 @@ export function TopActionBar({
               size="icon"
               data-active={timelineOpen}
               onClick={() => setTimelineOpen(!timelineOpen)}
-              aria-label={timelineOpen ? "Hide Animation Timeline" : "Show Animation Timeline"}
+              aria-label={timelineOpen ? "Ẩn thanh thời gian" : "Hiện thanh thời gian"}
               data-testid="toggle-timeline-btn"
               className="h-8 w-8"
             >
@@ -402,7 +400,7 @@ export function TopActionBar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {timelineOpen ? "Hide Timeline" : "Show Timeline"}
+            {timelineOpen ? "Ẩn thanh khung hình" : "Hiện thanh khung hình"}
           </TooltipContent>
         </Tooltip>
 
@@ -412,7 +410,7 @@ export function TopActionBar({
               variant="ghost"
               size="icon"
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              aria-label={rightPanelOpen ? "Hide Inspector Panel" : "Show Inspector Panel"}
+              aria-label={rightPanelOpen ? "Ẩn bảng công cụ phải" : "Hiện bảng công cụ phải"}
               data-testid="toggle-right-panel-btn"
             >
               {rightPanelOpen ? (
@@ -423,7 +421,7 @@ export function TopActionBar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {rightPanelOpen ? "Hide Inspector" : "Show Inspector"}
+            {rightPanelOpen ? "Ẩn bảng thuộc tính" : "Hiện bảng thuộc tính"}
           </TooltipContent>
         </Tooltip>
       </div>

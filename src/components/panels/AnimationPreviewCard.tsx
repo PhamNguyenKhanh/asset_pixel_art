@@ -87,11 +87,11 @@ export function AnimationPreviewCard() {
         </span>
       </div>
 
-      {/* Controls: Play/Pause, FPS, Onion Skin */}
+      {/* Điều khiển: Phát/Tạm dừng, FPS, Da hành */}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Preview
+            Xem trước
           </span>
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -102,7 +102,7 @@ export function AnimationPreviewCard() {
                   className="h-7 w-7"
                   data-active={docMeta.onionSkin.enabled}
                   data-testid="onion-skin-btn"
-                  aria-label="Toggle Onion Skin"
+                  aria-label="Bật/tắt lớp mờ khung trước sau"
                   onClick={() =>
                     service.setOnionSkin({ enabled: !docMeta.onionSkin.enabled })
                   }
@@ -111,7 +111,7 @@ export function AnimationPreviewCard() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                Onion Skin ({docMeta.onionSkin.enabled ? "On" : "Off"})
+                Onion Skin ({docMeta.onionSkin.enabled ? "Bật" : "Tắt"})
               </TooltipContent>
             </Tooltip>
 
@@ -122,7 +122,7 @@ export function AnimationPreviewCard() {
                   size="icon"
                   className="h-7 w-7"
                   data-testid="play-preview-btn"
-                  aria-label={isPlaying ? "Pause Preview" : "Play Preview"}
+                  aria-label={isPlaying ? "Tạm dừng" : "Phát chuyển động"}
                   onClick={() => {
                     if (!isPlaying) setPreviewFrameIdx(docMeta.activeFrameIndex);
                     setIsPlaying(!isPlaying);
@@ -135,14 +135,14 @@ export function AnimationPreviewCard() {
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isPlaying ? "Pause Animation" : "Play Animation"}</TooltipContent>
+              <TooltipContent>{isPlaying ? "Tạm dừng" : "Phát hoạt ảnh"}</TooltipContent>
             </Tooltip>
           </div>
         </div>
 
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-500">Speed</span>
+            <span className="text-zinc-500">Tốc độ</span>
             <span data-testid="fps-readout" className="font-mono text-zinc-200">
               {docMeta.fps} FPS
             </span>

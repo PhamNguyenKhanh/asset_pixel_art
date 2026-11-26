@@ -45,7 +45,7 @@ export function LayerPanel() {
         <div className="flex items-center gap-1.5">
           <Layers className="h-3.5 w-3.5 text-amber-400" />
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Layers ({docMeta.layers.length})
+            Các lớp ({docMeta.layers.length})
           </h2>
         </div>
 
@@ -57,13 +57,13 @@ export function LayerPanel() {
                 size="icon"
                 className="h-6 w-6"
                 onClick={() => service.addLayer()}
-                aria-label="Add Layer"
+                aria-label="Thêm lớp"
                 data-testid="add-layer-btn"
               >
                 <Plus className="h-3.5 w-3.5 text-amber-400" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Add Layer</TooltipContent>
+            <TooltipContent>Thêm lớp mới</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -74,13 +74,13 @@ export function LayerPanel() {
                 className="h-6 w-6"
                 disabled={activeBottomIndex <= 0}
                 onClick={() => activeLayer && service.mergeLayerDown(activeLayer.id)}
-                aria-label="Merge Layer Down"
+                aria-label="Gộp xuống lớp dưới"
                 data-testid="merge-down-btn"
               >
                 <ArrowDown className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Merge Active Layer Down</TooltipContent>
+            <TooltipContent>Gộp lớp hiện tại xuống dưới</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -91,22 +91,22 @@ export function LayerPanel() {
                 className="h-6 w-6"
                 disabled={visibleCount <= 1}
                 onClick={() => service.mergeVisibleLayers()}
-                aria-label="Merge Visible Layers"
+                aria-label="Gộp các lớp đang hiện"
                 data-testid="merge-visible-btn"
               >
                 <Combine className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Merge All Visible Layers</TooltipContent>
+            <TooltipContent>Gộp tất cả lớp đang hiển thị</TooltipContent>
           </Tooltip>
         </div>
       </div>
 
-      {/* Active Layer Opacity Slider */}
+      {/* Độ mờ lớp */}
       {activeLayer && (
         <div className="flex flex-col gap-1 rounded-md border border-white/8 bg-[#12141a] p-2">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-zinc-400">Opacity</span>
+            <span className="text-zinc-400">Độ mờ</span>
             <span className="font-mono text-zinc-200">
               {Math.round(activeLayer.opacity * 100)}%
             </span>
@@ -254,7 +254,7 @@ export function LayerPanel() {
       </div>
 
       <p className="text-[10px] text-zinc-500">
-        Double-click any layer name to rename. Layers stay synced across animation frames.
+        Nhấp đúp vào tên lớp để đổi tên. Cấu trúc lớp tự động đồng bộ qua các khung hình.
       </p>
     </div>
   );

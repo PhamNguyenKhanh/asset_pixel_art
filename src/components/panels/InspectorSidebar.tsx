@@ -27,12 +27,11 @@ export function InspectorSidebar() {
   return (
     <aside
       data-testid="inspector-sidebar"
-      className="flex w-[304px] shrink-0 flex-col border-l border-white/8 bg-[#181b22] select-none"
+      className="flex w-[308px] shrink-0 flex-col border-l border-white/8 bg-[#181b22] select-none"
     >
-      {/* Always-visible live Animation Preview & FPS widget */}
       <AnimationPreviewCard />
 
-      {/* Inspector Tabs: Color | Fill | Light | Layers | Context */}
+      {/* Tab thuộc tính: Màu | Tô | Sáng | Lớp | Loại */}
       <div className="grid grid-cols-5 border-b border-white/8 bg-[#14171e] p-1 gap-0.5">
         <button
           type="button"
@@ -45,7 +44,7 @@ export function InspectorSidebar() {
           }`}
         >
           <Palette className="h-3.5 w-3.5" />
-          <span>Color</span>
+          <span>Màu</span>
         </button>
 
         <button
@@ -59,7 +58,7 @@ export function InspectorSidebar() {
           }`}
         >
           <Sparkles className="h-3.5 w-3.5" />
-          <span>Fill</span>
+          <span>Tô</span>
           {(fillMode !== "solid" || previewActive) && (
             <span
               aria-hidden="true"
@@ -79,7 +78,7 @@ export function InspectorSidebar() {
           }`}
         >
           <Sun className="h-3.5 w-3.5" />
-          <span>Light</span>
+          <span>Sáng</span>
           {lightingEnabled && (
             <span
               aria-hidden="true"
@@ -99,7 +98,7 @@ export function InspectorSidebar() {
           }`}
         >
           <Layers className="h-3.5 w-3.5" />
-          <span>Layers ({layerCount})</span>
+          <span>Lớp ({layerCount})</span>
         </button>
 
         <button
@@ -113,7 +112,7 @@ export function InspectorSidebar() {
           }`}
         >
           <Compass className="h-3.5 w-3.5" />
-          <span>Ctx</span>
+          <span>Loại</span>
           {assetTypeId !== "custom" && (
             <span
               aria-hidden="true"
@@ -123,7 +122,6 @@ export function InspectorSidebar() {
         </button>
       </div>
 
-      {/* Scrollable Active Tab Content */}
       <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
         {inspectorTab === "colors" && <ColorPanel />}
         {inspectorTab === "fill" && <SmartFillPanel />}

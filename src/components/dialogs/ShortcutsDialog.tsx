@@ -17,42 +17,42 @@ interface ShortcutsDialogProps {
 
 const SHORTCUT_GROUPS = [
   {
-    title: "Drawing & Selection Tools",
+    title: "Công cụ vẽ & Chọn vùng",
     items: [
-      ["P", "Pencil"],
-      ["E", "Eraser"],
-      ["B", "Bucket / Smart Fill"],
-      ["I", "Color Picker (Eyedropper)"],
-      ["L", "Line (Shift: 45° snap)"],
-      ["U", "Rectangle (Shift: Square)"],
-      ["O", "Ellipse (Shift: Circle)"],
-      ["M", "Rectangular Select"],
-      ["V", "Move Layer / Selection"],
+      ["P", "Bút chì"],
+      ["E", "Tẩy"],
+      ["B", "Đổ màu / Tô thông minh"],
+      ["I", "Hút màu"],
+      ["L", "Đường thẳng (Giữ Shift: 45°)"],
+      ["U", "Hình chữ nhật (Giữ Shift: Vuông)"],
+      ["O", "Hình elip (Giữ Shift: Tròn)"],
+      ["M", "Chọn vùng chữ nhật"],
+      ["V", "Di chuyển lớp / vùng chọn"],
     ],
   },
   {
-    title: "Brush, Color & View",
+    title: "Cọ vẽ, Màu sắc & Góc nhìn",
     items: [
-      ["[ / ]", "Decrease / Increase Brush Size"],
-      ["X", "Swap Primary & Secondary Colors"],
-      ["Right-click", "Draw / Pick Secondary Color"],
-      ["G", "Toggle Pixel Grid"],
-      ["Space + Drag", "Pan Canvas (or Middle-click)"],
-      ["Wheel / + / -", "Zoom In / Out"],
-      ["0", "Fit Canvas to Viewport"],
+      ["[ / ]", "Giảm / Tăng cỡ cọ"],
+      ["X", "Đổi màu chính & màu phụ"],
+      ["Chuột phải", "Vẽ / Hút màu phụ"],
+      ["G", "Bật / tắt lưới pixel"],
+      ["Space + Kéo", "Di chuyển khung nhìn (hoặc Chuột giữa)"],
+      ["Cuộn / + / -", "Phóng to / Thu nhỏ"],
+      ["0", "Vừa khung nhìn"],
     ],
   },
   {
-    title: "Edit, History & Animation",
+    title: "Chỉnh sửa, Lịch sử & Hoạt ảnh",
     items: [
-      ["Ctrl + Z", "Undo"],
-      ["Ctrl + Shift + Z / Y", "Redo"],
-      ["Ctrl + C / X / V", "Copy / Cut / Paste Selection"],
-      ["Ctrl + A / D", "Select All / Deselect"],
-      ["Delete / Backspace", "Clear Selected Pixels"],
-      [", / .", "Previous / Next Frame"],
-      ["Enter / Esc", "Apply / Cancel Smart Fill Preview"],
-      ["?", "Open Keyboard Shortcuts"],
+      ["Ctrl + Z", "Hoàn tác (Undo)"],
+      ["Ctrl + Shift + Z / Y", "Làm lại (Redo)"],
+      ["Ctrl + C / X / V", "Sao chép / Cắt / Dán vùng chọn"],
+      ["Ctrl + A / D", "Chọn tất cả / Bỏ chọn"],
+      ["Delete / Backspace", "Xóa pixel vùng chọn"],
+      [", / .", "Khung trước / Khung sau"],
+      ["Enter / Esc", "Áp dụng / Hủy xem trước Tô thông minh"],
+      ["?", "Mở bảng phím tắt"],
     ],
   },
 ] as const;
@@ -64,10 +64,10 @@ export function ShortcutsDialog({ open, onOpenChange }: ShortcutsDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-amber-400" />
-            <span>Keyboard Shortcuts</span>
+            <span>Bảng phím tắt</span>
           </DialogTitle>
           <DialogDescription>
-            Quick reference for drawing, navigation, animation, and preview controls.
+            Tra cứu nhanh phím tắt vẽ, điều hướng, hoạt ảnh và xem trước trong Yui Art Studio.
           </DialogDescription>
         </DialogHeader>
 

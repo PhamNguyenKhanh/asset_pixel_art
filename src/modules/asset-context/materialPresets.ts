@@ -3,8 +3,8 @@ import type { MaterialPreset, MaterialPresetId } from "@/types/assetContext";
 export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> = {
   wood: {
     id: "wood",
-    label: "Wood",
-    description: "Warm organic grain bands with subtle amber highlights and deep brown crevices.",
+    label: "Gỗ",
+    description: "Vân gỗ ấm tự nhiên với điểm nhấn hổ phách và khe tối nâu đậm.",
     sampleColors: ["#3E2318", "#5C3624", "#7C4B30", "#9E6642", "#C28A5B"],
     colorVariation: 0.28,
     brightnessVariation: 0.32,
@@ -15,8 +15,8 @@ export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> 
   },
   stone: {
     id: "stone",
-    label: "Stone",
-    description: "Cool-neutral rocky clusters with chiseled bevels and subtle mineral speckles.",
+    label: "Đá",
+    description: "Mảng đá sắc lạnh với cạnh vát sắc nét và hạt khoáng chất nhẹ.",
     sampleColors: ["#2B303B", "#464E5E", "#657082", "#8894A6", "#B4BFCB"],
     colorVariation: 0.18,
     brightnessVariation: 0.36,
@@ -27,8 +27,8 @@ export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> 
   },
   grass: {
     id: "grass",
-    label: "Grass",
-    description: "Fresh layered turf clusters shifting toward warm yellow-green tips and cool shadows.",
+    label: "Cỏ",
+    description: "Cụm cỏ phân lớp tự nhiên, ngọn sáng ngả vàng và chân bóng ngả lạnh.",
     sampleColors: ["#1F3F2A", "#2E603B", "#4B8B49", "#78B854", "#B2D96C"],
     colorVariation: 0.32,
     brightnessVariation: 0.34,
@@ -39,8 +39,8 @@ export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> 
   },
   foliage: {
     id: "foliage",
-    label: "Foliage",
-    description: "Grouped leaf canopy clusters with bright sunlit crowns and deep shadowed undersides.",
+    label: "Tán lá",
+    description: "Cụm tán lá nhiều lớp với đỉnh hứng nắng sáng và mặt dưới bóng đậm.",
     sampleColors: ["#173324", "#245236", "#3E7A47", "#6DB356", "#AED66B"],
     colorVariation: 0.35,
     brightnessVariation: 0.4,
@@ -51,8 +51,8 @@ export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> 
   },
   metal: {
     id: "metal",
-    label: "Metal",
-    description: "High-contrast directional specular bands with crisp cool reflections.",
+    label: "Kim loại",
+    description: "Dải phản chiếu ánh kim tương phản cao với viền sáng sắc nét.",
     sampleColors: ["#232A38", "#424F66", "#7485A1", "#B1C0D6", "#EEF4FA"],
     colorVariation: 0.16,
     brightnessVariation: 0.55,
@@ -63,8 +63,8 @@ export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> 
   },
   fabric: {
     id: "fabric",
-    label: "Fabric",
-    description: "Soft woven shading with gentle tonal rolloff and low-noise fold texture.",
+    label: "Vải",
+    description: "Bề mặt vải chuyển sắc êm dịu, nếp gấp tự nhiên và ít nhiễu.",
     sampleColors: ["#482035", "#763350", "#A64B6C", "#D07190", "#EE9DB6"],
     colorVariation: 0.2,
     brightnessVariation: 0.26,
@@ -75,8 +75,8 @@ export const BUILTIN_MATERIAL_PRESETS: Record<MaterialPresetId, MaterialPreset> 
   },
   skin: {
     id: "skin",
-    label: "Skin",
-    description: "Smooth warm tonal ramp with subtle rose shadows and clean highlights.",
+    label: "Da",
+    description: "Dải sắc độ da ấm mịn với vùng bóng hồng nhẹ và điểm sáng sạch.",
     sampleColors: ["#7A4438", "#A86652", "#D48E72", "#F0B697", "#FAD8C2"],
     colorVariation: 0.15,
     brightnessVariation: 0.24,

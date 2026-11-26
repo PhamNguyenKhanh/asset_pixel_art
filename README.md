@@ -1,4 +1,4 @@
-# Pixel Art Studio
+# Yui Art Studio
 
 Trình vẽ và chỉnh sửa **Pixel Art 2D** chạy hoàn toàn trên trình duyệt (100% client-side — không cần đăng nhập, không database, không backend).
 

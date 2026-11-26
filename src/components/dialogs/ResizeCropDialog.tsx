@@ -69,14 +69,14 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="resize-crop-dialog">
         <DialogHeader>
-          <DialogTitle>Resize &amp; Crop Canvas</DialogTitle>
+          <DialogTitle>Đổi kích thước &amp; Cắt khung vẽ</DialogTitle>
           <DialogDescription>
-            Adjust canvas bounds, nearest-neighbor scale pixels, or crop to selection / content.
+            Mở rộng/thu gọn khung vẽ theo điểm neo, thu phóng pixel sắc nét hoặc cắt theo vùng chọn.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleResizeSubmit} className="flex flex-col gap-4">
-          {/* Resize Mode Toggle */}
+          {/* Chế độ đổi kích thước */}
           <div className="grid grid-cols-2 gap-1.5 rounded-md border border-white/10 bg-[#12141a] p-1">
             <button
               type="button"
@@ -88,7 +88,7 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
               }`}
             >
               <Maximize className="h-3.5 w-3.5" />
-              <span>Resize Canvas</span>
+              <span>Đổi khung vẽ</span>
             </button>
             <button
               type="button"
@@ -100,14 +100,14 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
               }`}
             >
               <Maximize className="h-3.5 w-3.5" />
-              <span>Scale Pixels (Nearest)</span>
+              <span>Thu phóng Pixel</span>
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="resize-w-input" className="text-xs font-medium text-zinc-300">
-                Width (px)
+                Rộng (px)
               </label>
               <Input
                 id="resize-w-input"
@@ -121,7 +121,7 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="resize-h-input" className="text-xs font-medium text-zinc-300">
-                Height (px)
+                Cao (px)
               </label>
               <Input
                 id="resize-h-input"
@@ -139,9 +139,9 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
           {mode === "canvas" && (
             <div className="flex items-center justify-between rounded-md border border-white/8 bg-[#12141a] p-3">
               <div>
-                <p className="text-xs font-medium text-zinc-200">Anchor Position</p>
+                <p className="text-xs font-medium text-zinc-200">Vị trí điểm neo</p>
                 <p className="text-[11px] text-zinc-500">
-                  Keeps existing artwork aligned when expanding or shrinking.
+                  Giữ nguyên căn lề hình vẽ khi mở rộng hoặc thu hẹp khung.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-1">
@@ -178,7 +178,7 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
           {/* Quick Crop Actions */}
           <div className="flex flex-col gap-2 border-t border-white/8 pt-3">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              Quick Crop
+              Cắt nhanh
             </span>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -192,7 +192,7 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
                 }}
               >
                 <Crop className="h-3.5 w-3.5 text-amber-400" />
-                <span>Crop to Selection</span>
+                <span>Cắt theo vùng chọn</span>
               </Button>
               <Button
                 type="button"
@@ -204,21 +204,21 @@ export function ResizeCropDialog({ open, onOpenChange }: ResizeCropDialogProps) 
                 }}
               >
                 <Scissors className="h-3.5 w-3.5 text-amber-400" />
-                <span>Auto-Trim Empty</span>
+                <span>Cắt viền trong suốt</span>
               </Button>
             </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              Hủy
             </Button>
             <Button
               type="submit"
               disabled={!validation.valid}
               data-testid="confirm-resize-btn"
             >
-              Apply Resize
+              Áp dụng
             </Button>
           </DialogFooter>
         </form>

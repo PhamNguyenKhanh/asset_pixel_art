@@ -21,17 +21,17 @@ import { hexToRgba, rgbaToCss, rgbaToHex } from "@/core/image-processing/color";
 import { Button } from "@/components/ui/button";
 
 const LIGHT_COLOR_PRESETS = [
-  { label: "Sun", hex: "#FFF4D6" },
-  { label: "Pure", hex: "#FFFFFF" },
-  { label: "Moon", hex: "#A8D4FF" },
-  { label: "Torch", hex: "#FFAA5E" },
+  { label: "Nắng", hex: "#FFF4D6" },
+  { label: "Trắng", hex: "#FFFFFF" },
+  { label: "Trăng", hex: "#A8D4FF" },
+  { label: "Đuốc", hex: "#FFAA5E" },
 ] as const;
 
 const DIRECTION_PRESETS = [
-  { label: "TL", x: -0.8, y: -0.8 },
-  { label: "Top", x: 0, y: -1.0 },
-  { label: "TR", x: 0.8, y: -0.8 },
-  { label: "BL", x: -0.8, y: 0.8 },
+  { id: "tl", label: "Trên-T", x: -0.8, y: -0.8 },
+  { id: "top", label: "Trên", x: 0, y: -1.0 },
+  { id: "tr", label: "Trên-P", x: 0.8, y: -0.8 },
+  { id: "bl", label: "Dưới-T", x: -0.8, y: 0.8 },
 ] as const;
 
 export function LightingPanel() {
@@ -68,7 +68,7 @@ export function LightingPanel() {
           <div className="flex items-center gap-1.5">
             <Sun className={`h-4 w-4 ${config.enabled ? "text-amber-400" : "text-zinc-500"}`} />
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
-              Lighting Studio
+              Phòng Ánh sáng
             </h2>
           </div>
 
@@ -91,17 +91,17 @@ export function LightingPanel() {
         </div>
 
         <p className="text-[10px] leading-relaxed text-zinc-400">
-          Non-destructive directional light &amp; pixel shadows. Drag the glowing handle directly
-          on canvas or use the compass pad below.
+          Ánh sáng định hướng &amp; bóng đổ không phá hủy pixel gốc. Kéo trực tiếp biểu tượng nguồn
+          sáng trên khung vẽ hoặc dùng la bàn bên dưới.
         </p>
 
-        {/* Asset Context Shading Sync */}
+        {/* Đồng bộ bề mặt theo ngữ cảnh */}
         <div className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-[#12141a] px-2.5 py-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <Compass className="h-3.5 w-3.5 shrink-0 text-amber-400" />
             <div className="min-w-0">
               <div className="truncate text-[11px] font-medium text-zinc-200">
-                {activeProfile.label} Surface
+                Bề mặt {activeProfile.label}
               </div>
               <div className="truncate text-[10px] text-zinc-500">
                 {activeProfile.lightingHints.surfaceLabel}
@@ -116,16 +116,16 @@ export function LightingPanel() {
             onClick={() => service.syncLightingFromAssetContext()}
             className="h-6 px-2 text-[10px]"
           >
-            Sync
+            Đồng bộ
           </Button>
         </div>
       </section>
 
-      {/* Interactive 2D Light Direction Pad */}
+      {/* Vị trí nguồn sáng */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Light Position
+            Vị trí nguồn sáng
           </span>
           <span className="font-mono text-[10px] text-zinc-400">
             X:{config.lightX.toFixed(2)} Y:{config.lightY.toFixed(2)}
@@ -167,9 +167,9 @@ export function LightingPanel() {
             <div className="grid grid-cols-2 gap-1">
               {DIRECTION_PRESETS.map((dir) => (
                 <button
-                  key={dir.label}
+                  key={dir.id}
                   type="button"
-                  data-testid={`light-dir-${dir.label.toLowerCase()}`}
+                  data-testid={`light-dir-${dir.id}`}
                   onClick={() =>
                     service.setLightingConfig({
                       enabled: true,
@@ -186,7 +186,7 @@ export function LightingPanel() {
 
             <div className="flex flex-col gap-0.5">
               <div className="flex justify-between text-[10px]">
-                <span className="text-zinc-500">Elevation</span>
+                <span className="text-zinc-500">Độ cao</span>
                 <span className="font-mono text-zinc-300">
                   {Math.round(config.lightElevation * 100)}%
                 </span>
@@ -196,7 +196,7 @@ export function LightingPanel() {
                 min={15}
                 max={100}
                 value={Math.round(config.lightElevation * 100)}
-                aria-label="Light Elevation"
+                aria-label="Độ cao nguồn sáng"
                 onChange={(e) =>
                   service.setLightingConfig({ lightElevation: Number(e.target.value) / 100 })
                 }
@@ -205,7 +205,7 @@ export function LightingPanel() {
             </div>
 
             <label className="flex items-center justify-between text-[10px] text-zinc-400 cursor-pointer">
-              <span>Canvas Gizmo</span>
+              <span>Hiện nguồn sáng</span>
               <input
                 type="checkbox"
                 checked={config.showLightGizmo}
@@ -225,7 +225,7 @@ export function LightingPanel() {
       <section className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Light Color
+            Màu ánh sáng
           </span>
           <span className="font-mono text-[10px] text-zinc-400">
             {rgbaToHex(config.lightColor)}
@@ -271,12 +271,12 @@ export function LightingPanel() {
       <section className="flex flex-col gap-2">
         {(
           [
-            ["Light Intensity", "intensity", config.intensity, 0, 180],
-            ["Ambient Light", "ambientLight", config.ambientLight, 0, 100],
-            ["Shadow Intensity", "shadowIntensity", config.shadowIntensity, 0, 100],
-            ["Shadow Softness (Dither)", "shadowSoftness", config.shadowSoftness, 0, 100],
-            ["Shadow Length", "shadowLength", config.shadowLength, 0, 100],
-            ["Hue Shift", "hueShiftStrength", config.hueShiftStrength, 0, 100],
+            ["Cường độ sáng", "intensity", config.intensity, 0, 180],
+            ["Ánh sáng môi trường", "ambientLight", config.ambientLight, 0, 100],
+            ["Độ đậm bóng đổ", "shadowIntensity", config.shadowIntensity, 0, 100],
+            ["Độ mềm bóng (Dither)", "shadowSoftness", config.shadowSoftness, 0, 100],
+            ["Chiều dài bóng đổ", "shadowLength", config.shadowLength, 0, 100],
+            ["Dịch sắc độ", "hueShiftStrength", config.hueShiftStrength, 0, 100],
           ] as const
         ).map(([label, key, value, min, max]) => (
           <div key={key} className="flex flex-col gap-0.5">
@@ -299,9 +299,9 @@ export function LightingPanel() {
           </div>
         ))}
 
-        {/* Stepped Shading Bands */}
+        {/* Dải sáng tối */}
         <div className="flex items-center justify-between pt-0.5">
-          <span className="text-[11px] text-zinc-400">Shading Bands</span>
+          <span className="text-[11px] text-zinc-400">Số dải sáng tối</span>
           <div className="flex gap-1">
             {[0, 3, 4, 5, 6].map((steps) => (
               <button
@@ -323,21 +323,21 @@ export function LightingPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Inspection Preview Mode */}
+      {/* Kênh xem trước */}
       <section className="flex flex-col gap-1.5">
         <div className="flex items-center gap-1">
           <Eye className="h-3 w-3 text-zinc-400" />
           <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Preview Channel
+            Kênh xem trước
           </span>
         </div>
         <div className="grid grid-cols-4 gap-1 rounded-md border border-white/10 bg-[#12141a] p-1">
           {(
             [
-              ["lit", "Lit"],
-              ["normals", "Norm"],
-              ["height", "Height"],
-              ["shadows", "Shad"],
+              ["lit", "Sáng"],
+              ["normals", "Pháp tuyến"],
+              ["height", "Độ cao"],
+              ["shadows", "Bóng"],
             ] as readonly [LightingPreviewMode, string][]
           ).map(([modeId, label]) => (
             <button
@@ -357,13 +357,13 @@ export function LightingPanel() {
         </div>
       </section>
 
-      {/* Optional Semi-Automatic Height / Occlusion Mask Sculpting */}
+      {/* Cọ mặt nạ bề mặt */}
       <section className="flex flex-col gap-1.5 rounded-md border border-white/8 bg-[#12141a] p-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Mountain className="h-3 w-3 text-amber-400" />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-300">
-              Surface Mask Brush
+              Cọ mặt nạ bề mặt
             </span>
           </div>
           <button
@@ -371,18 +371,18 @@ export function LightingPanel() {
             onClick={() => service.clearActiveLayerSurfaceMasks()}
             className="text-[10px] text-zinc-500 hover:text-rose-400 cursor-pointer"
           >
-            Clear
+            Xóa hết
           </button>
         </div>
 
         <div className="grid grid-cols-3 gap-1">
           {(
             [
-              ["none", "Off"],
-              ["raise", "Raise +"],
-              ["lower", "Lower -"],
-              ["occlude", "Shadow"],
-              ["erase-mask", "Erase"],
+              ["none", "Tắt"],
+              ["raise", "Nâng +"],
+              ["lower", "Hạ -"],
+              ["occlude", "Che bóng"],
+              ["erase-mask", "Tẩy"],
             ] as readonly [SurfaceMaskPaintMode, string][]
           ).map(([id, label]) => (
             <button
@@ -411,19 +411,19 @@ export function LightingPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Apply (Bake) & Reset Actions */}
+      {/* Áp dụng (Bake) & Đặt lại */}
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-[11px]">
-          <span className="text-zinc-400">Bake Scope</span>
+          <span className="text-zinc-400">Phạm vi áp dụng</span>
           <select
             value={bakeScope}
             data-testid="bake-scope-select"
             onChange={(e) => setBakeScope(e.target.value as LightingBakeScope)}
             className="h-6 rounded border border-white/12 bg-[#12141a] px-1.5 text-[11px] text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-400"
           >
-            <option value="current-layer">Current Layer</option>
-            <option value="current-frame">Current Frame</option>
-            <option value="all-frames">All Frames ({frameCount})</option>
+            <option value="current-layer">Lớp hiện tại</option>
+            <option value="current-frame">Khung hiện tại</option>
+            <option value="all-frames">Tất cả khung ({frameCount})</option>
           </select>
         </div>
 
@@ -436,7 +436,7 @@ export function LightingPanel() {
             onClick={() => service.resetLighting()}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>Reset</span>
+            <span>Đặt lại</span>
           </Button>
           <Button
             type="button"
@@ -447,7 +447,7 @@ export function LightingPanel() {
             onClick={() => service.applyLightingBake(bakeScope)}
           >
             <Check className="h-3.5 w-3.5" />
-            <span>Apply (Bake)</span>
+            <span>Áp dụng (Bake)</span>
           </Button>
         </div>
       </section>

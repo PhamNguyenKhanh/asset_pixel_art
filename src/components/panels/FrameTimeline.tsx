@@ -93,7 +93,7 @@ export function FrameTimeline() {
           <div className="flex items-center gap-1.5">
             <Film className="h-3.5 w-3.5 text-amber-400" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-              Frames ({docMeta.frameCount})
+              Khung ({docMeta.frameCount})
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -104,12 +104,12 @@ export function FrameTimeline() {
                   size="icon"
                   className="h-6 w-6"
                   onClick={() => setIsPlaying(!isPlaying)}
-                  aria-label={isPlaying ? "Pause" : "Play"}
+                  aria-label={isPlaying ? "Tạm dừng" : "Phát"}
                 >
                   {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{isPlaying ? "Pause Preview" : "Play Preview"}</TooltipContent>
+              <TooltipContent>{isPlaying ? "Tạm dừng" : "Phát xem trước"}</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -122,7 +122,7 @@ export function FrameTimeline() {
                   onClick={() =>
                     service.setOnionSkin({ enabled: !docMeta.onionSkin.enabled })
                   }
-                  aria-label="Toggle Onion Skin"
+                  aria-label="Bật/tắt Onion Skin"
                 >
                   <Layers2 className="h-3 w-3" />
                 </Button>
@@ -132,10 +132,10 @@ export function FrameTimeline() {
           </div>
         </div>
 
-        {/* Active Frame Duration */}
+        {/* Thời lượng khung */}
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <label htmlFor="frame-duration-input" className="text-zinc-500">
-            Frame ms
+            Thời gian ms
           </label>
           <Input
             id="frame-duration-input"
@@ -235,7 +235,7 @@ export function FrameTimeline() {
           );
         })}
 
-        {/* Add Frame Button */}
+        {/* Nút thêm khung */}
         <Button
           variant="secondary"
           onClick={() => service.addFrame()}
@@ -243,7 +243,7 @@ export function FrameTimeline() {
           className="flex h-[74px] w-14 shrink-0 flex-col gap-1 border-dashed border-white/15 bg-[#12141a] text-zinc-400 hover:border-amber-400/60 hover:text-amber-300"
         >
           <Plus className="h-4 w-4" />
-          <span className="text-[10px]">Add</span>
+          <span className="text-[10px]">Thêm</span>
         </Button>
       </div>
     </section>

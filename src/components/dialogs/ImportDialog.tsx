@@ -73,18 +73,17 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="import-dialog">
         <DialogHeader>
-          <DialogTitle>Import Image, GIF, or Project</DialogTitle>
+          <DialogTitle>Nhập ảnh, GIF hoặc Dự án</DialogTitle>
           <DialogDescription>
-            Supports PNG, JPG/JPEG, WebP, animated GIF (splits into timeline frames), and local{" "}
-            <code className="font-mono text-zinc-300">.pxs.json</code> project files.
+            Hỗ trợ PNG, JPG/JPEG, WebP, GIF động (tách khung hình vào timeline), và tệp dự án{" "}
+            <code className="font-mono text-zinc-300">.pxs.json</code>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3.5">
-          {/* Static Image Import Placement Mode */}
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-zinc-300">
-              For Static Images (PNG / JPG / WebP)
+              Đối với ảnh tĩnh (PNG / JPG / WebP)
             </span>
             <div className="grid grid-cols-2 gap-1.5 rounded-md border border-white/10 bg-[#12141a] p-1">
               <button
@@ -96,7 +95,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                Open as New Canvas
+                Mở thành khung vẽ mới
               </button>
               <button
                 type="button"
@@ -107,12 +106,11 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                Place on Current Layer
+                Đặt lên lớp hiện tại
               </button>
             </div>
           </div>
 
-          {/* Dropzone / File Picker */}
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -125,14 +123,14 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
           >
             <Upload className="h-7 w-7 text-amber-400" />
             <p className="text-xs font-medium text-zinc-200">
-              {busy ? "Decoding file..." : "Click to choose a file or drag & drop here"}
+              {busy ? "Đang giải mã tệp..." : "Nhấn để chọn tệp hoặc kéo thả vào đây"}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-zinc-500">
               <span className="flex items-center gap-1">
                 <ImageIcon className="h-3 w-3" /> PNG / JPG / WebP
               </span>
               <span className="flex items-center gap-1">
-                <Film className="h-3 w-3" /> Animated GIF
+                <Film className="h-3 w-3" /> GIF động
               </span>
               <span className="flex items-center gap-1">
                 <FileJson className="h-3 w-3" /> .pxs.json
@@ -161,7 +159,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
 
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Close
+            Đóng
           </Button>
         </DialogFooter>
       </DialogContent>

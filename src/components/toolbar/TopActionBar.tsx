@@ -9,6 +9,7 @@ import {
   FlipHorizontal2,
   FlipVertical2,
   Grid3x3,
+  Keyboard,
   Maximize2,
   PanelRightClose,
   PanelRightOpen,
@@ -31,6 +32,7 @@ interface TopActionBarProps {
   onOpenResizeCrop: () => void;
   onOpenImport: () => void;
   onOpenExport: () => void;
+  onOpenShortcuts: () => void;
 }
 
 export function TopActionBar({
@@ -38,6 +40,7 @@ export function TopActionBar({
   onOpenResizeCrop,
   onOpenImport,
   onOpenExport,
+  onOpenShortcuts,
 }: TopActionBarProps) {
   const service = useEditorService();
   const docMeta = useEditorStore((s) => s.documentMeta);
@@ -366,8 +369,24 @@ export function TopActionBar({
         </Tooltip>
       </div>
 
-      {/* Right: Panel Toggles */}
+      {/* Right: Shortcuts & Panel Toggles */}
       <div className="flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenShortcuts}
+              aria-label="Keyboard Shortcuts"
+              data-testid="shortcuts-btn"
+              className="h-8 w-8"
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Keyboard Shortcuts (?)</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

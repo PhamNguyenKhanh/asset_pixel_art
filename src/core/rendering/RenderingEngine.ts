@@ -1,9 +1,12 @@
-import type { DirtyRect, Point, RGBA } from "@/types/editor";
+import type { DirtyRect, Point, RGBA, SelectionRect } from "@/types/editor";
+import type { ILightingPipeline } from "@/core/contracts";
 import type { PixelDocument } from "@/core/document/PixelDocument";
+import { PixelBuffer } from "@/core/document/PixelBuffer";
 import type { ViewportTransform } from "@/core/canvas/ViewportTransform";
 import { clampDirtyRect, getDirtyRectSize, mergeDirtyRects } from "@/core/canvas/dirtyRect";
 import { getSquareBrushOffsets } from "@/core/image-processing/bresenham";
 import { rgbaToCss } from "@/core/image-processing/color";
+import { compositeLayers, compositeOverlayBuffer } from "@/core/image-processing/transforms";
 
 export interface CursorOverlayState {
   pixel: Point | null;
@@ -12,14 +15,22 @@ export interface CursorOverlayState {
   isEraser: boolean;
 }
 
+export interface LightGizmoOverlayState {
+  visible: boolean;
+  lightX: number;
+  lightY: number;
+  color: RGBA;
+  intensity: number;
+}
+
 const GRID_MIN_ZOOM = 4;
 const CHECKER_TILE_PX = 8;
 
 /**
  * HTML5 Canvas 2D Rendering Engine.
- * - Offscreen canvas composites pixel art at native 1:1 resolution.
+ * - Offscreen canvas composites active frame layers, Onion Skin ghosts, and transient tool previews.
  * - Display canvas draws with imageSmoothingEnabled = false (crisp nearest-neighbor).
- * - Overlay canvas renders pixel grid & brush cursor without touching pixel data.
+ * - Overlay canvas renders pixel grid, selection marching-ants box, and brush cursor preview.
  * - Driven by dirty flags + requestAnimationFrame (0% idle CPU usage).
  */
 export class RenderingEngine {
@@ -35,11 +46,19 @@ export class RenderingEngine {
   private compositeCtx: CanvasRenderingContext2D | null = null;
   private compositeImageData: ImageData | null = null;
 
+  private previewBuffer: PixelBuffer | null = null;
+  private previewReplacesActiveLayer = false;
+  private lightingPipeline: ILightingPipeline | null = null;
+  private lightSourceScratch: PixelBuffer | null = null;
+  private lightOutputScratch: PixelBuffer | null = null;
+  private lightGizmo: LightGizmoOverlayState | null = null;
+
   private cssWidth = 0;
   private cssHeight = 0;
   private dpr = 1;
 
   private showGrid = true;
+  private selection: SelectionRect | null = null;
   private cursorOverlay: CursorOverlayState = {
     pixel: null,
     brushSize: 1,
@@ -90,8 +109,57 @@ export class RenderingEngine {
 
   setDocument(document: PixelDocument): void {
     this.document = document;
+    this.selection = document.selection;
     this.syncCompositeSurfaceSize();
     this.markAllDirty();
+  }
+
+  setPreviewBuffer(buffer: PixelBuffer | null, replaceActiveLayer = false): void {
+    this.previewBuffer = buffer;
+    this.previewReplacesActiveLayer = replaceActiveLayer;
+    this.fullCompositeDirty = true;
+    this.pendingDirtyRect = null;
+    this.compositeDirty = true;
+    this.viewportDirty = true;
+    this.scheduleRender();
+  }
+
+  setSelection(selection: SelectionRect | null): void {
+    this.selection = selection;
+    this.markOverlayDirty();
+  }
+
+  setLightingPipeline(pipeline: ILightingPipeline | null): void {
+    this.lightingPipeline = pipeline;
+    this.markAllDirty();
+  }
+
+  setLightGizmo(gizmo: LightGizmoOverlayState | null): void {
+    this.lightGizmo = gizmo;
+    this.markOverlayDirty();
+  }
+
+  getLightGizmoScreenPos(): Point | null {
+    if (!this.lightGizmo || !this.lightGizmo.visible) return null;
+    const rect = this.viewport.getCanvasScreenRect(this.document.width, this.document.height);
+    const halfW = rect.width / 2;
+    const halfH = rect.height / 2;
+    return {
+      x: rect.x + halfW + this.lightGizmo.lightX * halfW,
+      y: rect.y + halfH + this.lightGizmo.lightY * halfH,
+    };
+  }
+
+  screenToNormalizedLightPos(screenX: number, screenY: number): { lightX: number; lightY: number } {
+    const rect = this.viewport.getCanvasScreenRect(this.document.width, this.document.height);
+    const halfW = Math.max(1, rect.width / 2);
+    const halfH = Math.max(1, rect.height / 2);
+    const rawX = (screenX - (rect.x + halfW)) / halfW;
+    const rawY = (screenY - (rect.y + halfH)) / halfH;
+    return {
+      lightX: Math.max(-1.6, Math.min(1.6, Math.round(rawX * 100) / 100)),
+      lightY: Math.max(-1.6, Math.min(1.6, Math.round(rawY * 100) / 100)),
+    };
   }
 
   resizeViewport(cssWidth: number, cssHeight: number, dpr = 1): void {
@@ -223,34 +291,66 @@ export class RenderingEngine {
     }
   }
 
+  private blendTintedGhost(
+    out: Uint8ClampedArray,
+    ghostData: Uint8ClampedArray,
+    tintR: number,
+    tintG: number,
+    tintB: number,
+    opacity: number,
+  ): void {
+    const pixelCount = out.length / 4;
+    for (let i = 0; i < pixelCount; i++) {
+      const off = i * 4;
+      const ga = (ghostData[off + 3]! / 255) * opacity;
+      if (ga <= 0) continue;
+
+      const sr = Math.round(ghostData[off]! * 0.4 + tintR * 0.6);
+      const sg = Math.round(ghostData[off + 1]! * 0.4 + tintG * 0.6);
+      const sb = Math.round(ghostData[off + 2]! * 0.4 + tintB * 0.6);
+
+      const da = out[off + 3]! / 255;
+      const outA = ga + da * (1 - ga);
+      if (outA <= 0) continue;
+
+      out[off] = Math.round((sr * ga + out[off]! * da * (1 - ga)) / outA);
+      out[off + 1] = Math.round((sg * ga + out[off + 1]! * da * (1 - ga)) / outA);
+      out[off + 2] = Math.round((sb * ga + out[off + 2]! * da * (1 - ga)) / outA);
+      out[off + 3] = Math.round(outA * 255);
+    }
+  }
+
   private updateCompositeSurface(): void {
     this.syncCompositeSurfaceSize();
     if (!this.compositeCtx || !this.compositeImageData) return;
 
     const frame = this.document.getActiveFrame();
     const out = this.compositeImageData.data;
-    const pixelCount = this.document.width * this.document.height;
-
-    // Fast path: single visible full-opacity layer (standard Phase 1 case)
+    const width = this.document.width;
+    const height = this.document.height;
+    const onionEnabled = this.document.onionSkin.enabled && this.document.frames.length > 1;
+    const lightingEnabled = Boolean(this.lightingPipeline?.enabled);
     const visibleLayers = frame.layers.filter((l) => l.visible && l.opacity > 0);
-    if (visibleLayers.length === 0) {
-      out.fill(0);
-      this.compositeCtx.putImageData(this.compositeImageData, 0, 0);
-      return;
-    }
 
-    if (visibleLayers.length === 1 && visibleLayers[0]!.opacity >= 1) {
+    // Ultra-fast partial dirty-rect path when no onion skin, no preview overlay, no lighting, and 1 opaque layer
+    if (
+      !onionEnabled &&
+      !lightingEnabled &&
+      !this.previewBuffer &&
+      visibleLayers.length === 1 &&
+      visibleLayers[0]!.opacity >= 1
+    ) {
       const src = visibleLayers[0]!.buffer.data;
       const dirty =
         !this.fullCompositeDirty && this.pendingDirtyRect
-          ? clampDirtyRect(this.pendingDirtyRect, this.document.width, this.document.height)
+          ? clampDirtyRect(this.pendingDirtyRect, width, height)
           : null;
 
       if (dirty) {
         const { width: rw, height: rh } = getDirtyRectSize(dirty);
         const rowBytes = rw * 4;
         for (let row = 0; row < rh; row++) {
-          const offset = ((dirty.minY + row) * this.document.width + dirty.minX) * 4;
+          const offset = ((dirty.minY + row) * width + dirty.minX) * 4;
           out.set(src.subarray(offset, offset + rowBytes), offset);
         }
         this.compositeCtx.putImageData(
@@ -269,25 +369,76 @@ export class RenderingEngine {
       return;
     }
 
-    // General Porter-Duff source-over compositing for multi-layer readiness
+    // General path: Onion Skin + Multi-Layer Compositing + Transient Preview Buffer
     out.fill(0);
-    for (let li = 0; li < visibleLayers.length; li++) {
-      const layer = visibleLayers[li]!;
-      const src = layer.buffer.data;
-      const layerOpacity = layer.opacity;
-      for (let i = 0; i < pixelCount; i++) {
-        const off = i * 4;
-        const sa = (src[off + 3]! / 255) * layerOpacity;
-        if (sa <= 0) continue;
 
-        const da = out[off + 3]! / 255;
-        const outA = sa + da * (1 - sa);
-        if (outA <= 0) continue;
+    if (onionEnabled) {
+      const activeIdx = this.document.activeFrameIndex;
+      const baseOpacity = this.document.onionSkin.opacity;
 
-        out[off] = Math.round((src[off]! * sa + out[off]! * da * (1 - sa)) / outA);
-        out[off + 1] = Math.round((src[off + 1]! * sa + out[off + 1]! * da * (1 - sa)) / outA);
-        out[off + 2] = Math.round((src[off + 2]! * sa + out[off + 2]! * da * (1 - sa)) / outA);
-        out[off + 3] = Math.round(outA * 255);
+      // Previous frames tinted rose/crimson
+      for (let d = this.document.onionSkin.prevFrames; d >= 1; d--) {
+        const prevFrame = this.document.frames[activeIdx - d];
+        if (!prevFrame) continue;
+        const ghost = compositeLayers(prevFrame.layers, width, height);
+        this.blendTintedGhost(out, ghost.data, 244, 63, 94, baseOpacity / d);
+      }
+
+      // Next frames tinted sky cyan
+      for (let d = this.document.onionSkin.nextFrames; d >= 1; d--) {
+        const nextFrame = this.document.frames[activeIdx + d];
+        if (!nextFrame) continue;
+        const ghost = compositeLayers(nextFrame.layers, width, height);
+        this.blendTintedGhost(out, ghost.data, 56, 189, 248, baseOpacity / d);
+      }
+    }
+
+    const activeLayerId = this.document.activeLayerId;
+
+    if (lightingEnabled && this.lightingPipeline) {
+      if (
+        !this.lightSourceScratch ||
+        this.lightSourceScratch.width !== width ||
+        this.lightSourceScratch.height !== height
+      ) {
+        this.lightSourceScratch = new PixelBuffer(width, height);
+        this.lightOutputScratch = new PixelBuffer(width, height);
+      }
+      const rawBuf = this.lightSourceScratch;
+      const litBuf = this.lightOutputScratch!;
+      rawBuf.clear();
+
+      for (let li = 0; li < frame.layers.length; li++) {
+        const layer = frame.layers[li]!;
+        if (!layer.visible || layer.opacity <= 0) continue;
+        const isTargetLayer = layer.id === activeLayerId;
+        if (isTargetLayer && this.previewBuffer && this.previewReplacesActiveLayer) {
+          compositeOverlayBuffer(rawBuf.data, this.previewBuffer.data, layer.opacity);
+        } else {
+          compositeOverlayBuffer(rawBuf.data, layer.buffer.data, layer.opacity);
+          if (isTargetLayer && this.previewBuffer) {
+            compositeOverlayBuffer(rawBuf.data, this.previewBuffer.data, layer.opacity);
+          }
+        }
+      }
+
+      // Non-destructive lighting pass on composited frame buffer
+      this.lightingPipeline.process(rawBuf, litBuf);
+      compositeOverlayBuffer(out, litBuf.data, 1);
+    } else {
+      for (let li = 0; li < frame.layers.length; li++) {
+        const layer = frame.layers[li]!;
+        if (!layer.visible || layer.opacity <= 0) continue;
+
+        const isTargetLayer = layer.id === activeLayerId;
+        if (isTargetLayer && this.previewBuffer && this.previewReplacesActiveLayer) {
+          compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
+        } else {
+          compositeOverlayBuffer(out, layer.buffer.data, layer.opacity);
+          if (isTargetLayer && this.previewBuffer) {
+            compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
+          }
+        }
       }
     }
 
@@ -308,7 +459,6 @@ export class RenderingEngine {
     const rw = Math.round(rect.width);
     const rh = Math.round(rect.height);
 
-    // Subtle elevation shadow behind the sprite canvas
     ctx.save();
     ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
     ctx.shadowBlur = 24;
@@ -317,7 +467,6 @@ export class RenderingEngine {
     ctx.fillRect(rx, ry, rw, rh);
     ctx.restore();
 
-    // Clip to sprite canvas bounds and render crisp dark checkerboard transparency
     ctx.save();
     ctx.beginPath();
     ctx.rect(rx, ry, rw, rh);
@@ -350,7 +499,6 @@ export class RenderingEngine {
       }
     }
 
-    // Crisp nearest-neighbor scaling of pixel art buffer
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(
       this.compositeCanvas,
@@ -365,7 +513,6 @@ export class RenderingEngine {
     );
     ctx.restore();
 
-    // Crisp outer canvas frame border
     ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
     ctx.lineWidth = 1;
     ctx.strokeRect(rx - 0.5, ry - 0.5, rw + 1, rh + 1);
@@ -384,7 +531,7 @@ export class RenderingEngine {
     const rect = this.viewport.getCanvasScreenRect(this.document.width, this.document.height);
     const zoom = this.viewport.zoom;
 
-    // 1. Pixel Grid (auto-hidden below zoom threshold for visual clarity)
+    // 1. Pixel Grid
     if (this.showGrid && zoom >= GRID_MIN_ZOOM) {
       const minVisCol = Math.max(0, Math.floor(-rect.x / zoom));
       const maxVisCol = Math.min(this.document.width, Math.ceil((this.cssWidth - rect.x) / zoom));
@@ -412,7 +559,28 @@ export class RenderingEngine {
       ctx.stroke();
     }
 
-    // 2. Pixel-aligned Brush Cursor Preview
+    // 2. Selection Box Overlay (Crisp dual-dash outline)
+    if (this.selection && this.selection.width > 0 && this.selection.height > 0) {
+      const sx = Math.round(rect.x + this.selection.x * zoom) + 0.5;
+      const sy = Math.round(rect.y + this.selection.y * zoom) + 0.5;
+      const sw = Math.max(1, Math.round(this.selection.width * zoom) - 1);
+      const sh = Math.max(1, Math.round(this.selection.height * zoom) - 1);
+
+      ctx.save();
+      ctx.fillStyle = "rgba(56, 189, 248, 0.08)";
+      ctx.fillRect(sx, sy, sw, sh);
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+      ctx.strokeRect(sx, sy, sw, sh);
+
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.restore();
+    }
+
+    // 3. Pixel-aligned Brush Cursor Preview
     const { pixel, brushSize, color, isEraser } = this.cursorOverlay;
     if (
       pixel &&
@@ -441,7 +609,6 @@ export class RenderingEngine {
           ctx.fillRect(sx, sy, sw, sh);
         }
 
-        // High-contrast dual outline (dark outer + bright inner) visible on any background
         ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
         ctx.lineWidth = 2;
         ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
@@ -450,6 +617,69 @@ export class RenderingEngine {
         ctx.lineWidth = 1;
         ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
       }
+    }
+
+    // 4. Interactive Dynamic Light Source Gizmo (Directional Light Handle)
+    const gizmoPos = this.getLightGizmoScreenPos();
+    if (gizmoPos && this.lightGizmo) {
+      const cx = rect.x + rect.width / 2;
+      const cy = rect.y + rect.height / 2;
+      const lightCss = rgbaToCss({ ...this.lightGizmo.color, a: 255 });
+
+      ctx.save();
+      // Dashed directional light ray from gizmo toward sprite center
+      ctx.beginPath();
+      ctx.setLineDash([5, 4]);
+      ctx.moveTo(gizmoPos.x, gizmoPos.y);
+      ctx.lineTo(cx, cy);
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Soft outer glow halo
+      const glowRadius = 18 + Math.min(8, this.lightGizmo.intensity * 5);
+      const grad = ctx.createRadialGradient(
+        gizmoPos.x,
+        gizmoPos.y,
+        3,
+        gizmoPos.x,
+        gizmoPos.y,
+        glowRadius,
+      );
+      grad.addColorStop(0, rgbaToCss({ ...this.lightGizmo.color, a: 160 }));
+      grad.addColorStop(1, "rgba(251, 191, 36, 0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(gizmoPos.x, gizmoPos.y, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sun rays tick marks around handle
+      ctx.strokeStyle = lightCss;
+      ctx.lineWidth = 1.5;
+      for (let a = 0; a < 8; a++) {
+        const ang = (a * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(gizmoPos.x + Math.cos(ang) * 11, gizmoPos.y + Math.sin(ang) * 11);
+        ctx.lineTo(gizmoPos.x + Math.cos(ang) * 15, gizmoPos.y + Math.sin(ang) * 15);
+        ctx.stroke();
+      }
+
+      // Crisp dark border + glowing core handle
+      ctx.beginPath();
+      ctx.arc(gizmoPos.x, gizmoPos.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = lightCss;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#111318";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(gizmoPos.x, gizmoPos.y, 9.5, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.stroke();
+      ctx.restore();
     }
 
     ctx.restore();

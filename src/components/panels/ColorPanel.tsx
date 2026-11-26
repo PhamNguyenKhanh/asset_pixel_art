@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { Plus, Trash2, X } from "lucide-react";
 import type { RGBA } from "@/types/editor";
 import { useEditorService } from "@/hooks/EditorContext";
 import { useEditorStore } from "@/stores/editorStore";
@@ -13,6 +14,7 @@ import {
   rgbToHsv,
 } from "@/core/image-processing/color";
 import { DEFAULT_STUDIO_PALETTE } from "@/modules/color-management/defaultPalettes";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type ColorModeTab = "rgb" | "hsv";
@@ -21,11 +23,19 @@ export function ColorPanel() {
   const service = useEditorService();
   const primaryColor = useEditorStore((s) => s.primaryColor);
   const recentColors = useEditorStore((s) => s.recentColors);
-  const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
+  const customPalettes = useEditorStore((s) => s.customPalettes);
+  const assetTypeId = useEditorStore((s) => s.documentMeta.assetContext.assetTypeId);
+  const activeContextProfile = service.getAssetContextProfile();
+  const addCustomPalette = useEditorStore((s) => s.addCustomPalette);
+  const deleteCustomPalette = useEditorStore((s) => s.deleteCustomPalette);
+  const addColorToCustomPalette = useEditorStore((s) => s.addColorToCustomPalette);
+  const removeColorFromCustomPalette = useEditorStore((s) => s.removeColorFromCustomPalette);
 
   const [mode, setMode] = useState<ColorModeTab>("rgb");
   const [hexDraft, setHexDraft] = useState<string>(() => rgbaToHex(primaryColor));
-  // Preserve hue when saturation/value drops to 0 so dragging SV plane never jumps hue
+  const [newPaletteName, setNewPaletteName] = useState("");
+  const [showNewPaletteInput, setShowNewPaletteInput] = useState(false);
+
   const [preservedHue, setPreservedHue] = useState<number>(() => {
     return rgbToHsv(primaryColor.r, primaryColor.g, primaryColor.b).h;
   });
@@ -44,10 +54,6 @@ export function ColorPanel() {
       setPreservedHue(hsv.h);
     }
   }, [primaryColor]);
-
-  if (!rightPanelOpen) {
-    return null;
-  }
 
   const updateFromHsv = (h: number, s: number, v: number, a = primaryColor.a) => {
     const normalizedH = ((Math.round(h) % 360) + 360) % 360;
@@ -116,20 +122,26 @@ export function ColorPanel() {
     }
   };
 
+  const handleCreatePalette = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newPaletteName.trim();
+    if (!trimmed) return;
+    addCustomPalette(trimmed);
+    setNewPaletteName("");
+    setShowNewPaletteInput(false);
+  };
+
   const pureHueCss = `hsl(${effectiveHue}, 100%, 50%)`;
   const opaquePrimaryCss = `rgb(${primaryColor.r}, ${primaryColor.g}, ${primaryColor.b})`;
   const alphaPercent = Math.round((primaryColor.a / 255) * 100);
 
   return (
-    <aside
-      data-testid="color-panel"
-      className="flex w-[276px] shrink-0 flex-col gap-4 overflow-y-auto border-l border-white/8 bg-[#181b22] p-3.5 select-none"
-    >
-      {/* Color Picker Section */}
-      <section className="flex flex-col gap-2.5">
+    <div data-testid="color-panel" className="flex flex-col gap-3.5">
+      {/* Chọn màu */}
+      <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Color Picker
+            Bảng chọn màu
           </h2>
           <div className="flex items-center gap-1.5">
             <div className="checkerboard-swatch h-4 w-7 overflow-hidden rounded border border-white/20">
@@ -153,7 +165,7 @@ export function ColorPanel() {
           onPointerMove={(e) => {
             if (e.buttons === 1) handleSvPointer(e);
           }}
-          className="relative h-36 w-full cursor-crosshair overflow-hidden rounded-md border border-white/12"
+          className="relative h-32 w-full cursor-crosshair overflow-hidden rounded-md border border-white/12"
           style={{
             backgroundColor: pureHueCss,
             backgroundImage:
@@ -170,55 +182,51 @@ export function ColorPanel() {
         </div>
 
         {/* Hue Bar */}
-        <div className="flex flex-col gap-1">
+        <div
+          ref={hueRef}
+          data-testid="hue-slider"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            handleHuePointer(e);
+          }}
+          onPointerMove={(e) => {
+            if (e.buttons === 1) handleHuePointer(e);
+          }}
+          className="relative h-3 w-full cursor-ew-resize rounded-full border border-white/15"
+          style={{
+            background:
+              "linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)",
+          }}
+        >
           <div
-            ref={hueRef}
-            data-testid="hue-slider"
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              handleHuePointer(e);
-            }}
-            onPointerMove={(e) => {
-              if (e.buttons === 1) handleHuePointer(e);
-            }}
-            className="relative h-3 w-full cursor-ew-resize rounded-full border border-white/15"
-            style={{
-              background:
-                "linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%)",
-            }}
-          >
-            <div
-              className="pointer-events-none absolute top-1/2 h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/80 bg-white shadow"
-              style={{ left: `${(effectiveHue / 360) * 100}%` }}
-            />
-          </div>
+            className="pointer-events-none absolute top-1/2 h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/80 bg-white shadow"
+            style={{ left: `${(effectiveHue / 360) * 100}%` }}
+          />
         </div>
 
-        {/* Alpha / Transparency Bar */}
-        <div className="flex flex-col gap-1">
+        {/* Alpha Bar */}
+        <div
+          ref={alphaRef}
+          data-testid="alpha-slider"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            handleAlphaPointer(e);
+          }}
+          onPointerMove={(e) => {
+            if (e.buttons === 1) handleAlphaPointer(e);
+          }}
+          className="checkerboard-swatch relative h-3 w-full cursor-ew-resize overflow-hidden rounded-full border border-white/15"
+        >
           <div
-            ref={alphaRef}
-            data-testid="alpha-slider"
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              handleAlphaPointer(e);
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(to right, transparent, ${opaquePrimaryCss})`,
             }}
-            onPointerMove={(e) => {
-              if (e.buttons === 1) handleAlphaPointer(e);
-            }}
-            className="checkerboard-swatch relative h-3 w-full cursor-ew-resize overflow-hidden rounded-full border border-white/15"
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(to right, transparent, ${opaquePrimaryCss})`,
-              }}
-            />
-            <div
-              className="pointer-events-none absolute top-1/2 h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/80 bg-white shadow"
-              style={{ left: `${(primaryColor.a / 255) * 100}%` }}
-            />
-          </div>
+          />
+          <div
+            className="pointer-events-none absolute top-1/2 h-4 w-2 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-black/80 bg-white shadow"
+            style={{ left: `${(primaryColor.a / 255) * 100}%` }}
+          />
         </div>
 
         {/* Hex + Mode Tabs */}
@@ -328,13 +336,13 @@ export function ColorPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Recent Colors */}
-      <section className="flex flex-col gap-2">
+      {/* Màu gần đây */}
+      <section className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Recent Colors
+            Màu gần đây
           </h2>
-          <span className="text-[10px] text-zinc-500">L / R click</span>
+          <span className="text-[10px] text-zinc-500">Trái / Phải</span>
         </div>
         <div className="grid grid-cols-6 gap-1.5">
           {recentColors.map((color, idx) => (
@@ -360,10 +368,47 @@ export function ColorPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Default Studio Palette */}
-      <section className="flex flex-col gap-2">
+      {/* Context-Aware Suggested Colors (shown whenever a specific Asset Context is active) */}
+      {assetTypeId !== "custom" && activeContextProfile.suggestedPalettes[0] && (
+        <>
+          <section className="flex flex-col gap-1.5" data-testid="color-panel-context-suggestions">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+                Gợi ý {activeContextProfile.label}
+              </h2>
+              <span className="text-[10px] text-zinc-500">
+                {activeContextProfile.suggestedPalettes[0].name}
+              </span>
+            </div>
+            <div className="grid grid-cols-8 gap-1">
+              {activeContextProfile.suggestedPalettes[0].colors.map((hex) => {
+                const parsed = hexToRgba(hex);
+                if (!parsed) return null;
+                return (
+                  <button
+                    key={hex}
+                    type="button"
+                    title={`${hex} (${activeContextProfile.label} preset)`}
+                    onClick={() => applySwatch(parsed, false)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      applySwatch(parsed, true);
+                    }}
+                    className="h-5 w-full rounded border border-amber-400/30 transition-transform hover:scale-110 hover:border-amber-300 cursor-pointer"
+                    style={{ backgroundColor: hex }}
+                  />
+                );
+              })}
+            </div>
+          </section>
+          <div className="h-px bg-white/8" />
+        </>
+      )}
+
+      {/* Bảng màu chuẩn */}
+      <section className="flex flex-col gap-1.5">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          Studio Palette
+          Bảng màu chuẩn
         </h2>
         <div className="grid grid-cols-6 gap-1.5" data-testid="studio-palette">
           {DEFAULT_STUDIO_PALETTE.map((color) => {
@@ -389,38 +434,106 @@ export function ColorPanel() {
 
       <div className="h-px bg-white/8" />
 
-      {/* Compact Keyboard Shortcuts Reference */}
-      <section className="rounded-md border border-white/6 bg-[#13151b] p-2.5">
-        <h3 className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-          Quick Shortcuts
-        </h3>
-        <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px]">
-          <div className="flex items-center justify-between">
-            <dt className="text-zinc-500">Tools</dt>
-            <dd className="font-mono text-zinc-300">P E B I</dd>
+      {/* Bảng màu riêng */}
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+            Bảng màu riêng
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5 text-[10px]"
+            onClick={() => setShowNewPaletteInput(!showNewPaletteInput)}
+            data-testid="new-palette-btn"
+          >
+            <Plus className="h-3 w-3 text-amber-400" />
+            <span>Mới</span>
+          </Button>
+        </div>
+
+        {showNewPaletteInput && (
+          <form onSubmit={handleCreatePalette} className="flex items-center gap-1.5">
+            <Input
+              autoFocus
+              value={newPaletteName}
+              onChange={(e) => setNewPaletteName(e.target.value)}
+              placeholder="Tên bảng màu..."
+              className="h-7 font-sans text-xs"
+            />
+            <Button type="submit" size="sm" className="h-7 px-2">
+              Thêm
+            </Button>
+          </form>
+        )}
+
+        {customPalettes.length === 0 ? (
+          <p className="text-[11px] text-zinc-500">
+            Tạo bảng màu riêng để lưu các dải màu của bạn ngay trên trình duyệt.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {customPalettes.map((palette) => (
+              <div
+                key={palette.id}
+                className="rounded-md border border-white/8 bg-[#12141a] p-2"
+              >
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="truncate text-[11px] font-medium text-zinc-300">
+                    {palette.name}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      title="Add current primary color"
+                      onClick={() => addColorToCustomPalette(palette.id, primaryColor)}
+                      className="rounded p-0.5 text-zinc-400 hover:bg-white/10 hover:text-amber-300 cursor-pointer"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete palette"
+                      onClick={() => deleteCustomPalette(palette.id)}
+                      className="rounded p-0.5 text-zinc-500 hover:bg-white/10 hover:text-rose-400 cursor-pointer"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-6 gap-1">
+                  {palette.colors.map((color, idx) => (
+                    <div key={`${rgbaToHex(color, true)}-${idx}`} className="group relative">
+                      <button
+                        type="button"
+                        onClick={() => applySwatch(color, false)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          applySwatch(color, true);
+                        }}
+                        className="checkerboard-swatch h-5 w-full overflow-hidden rounded border border-white/15 hover:border-amber-400 cursor-pointer"
+                      >
+                        <span
+                          className="block h-full w-full"
+                          style={{ backgroundColor: rgbaToCss(color) }}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Remove color"
+                        onClick={() => removeColorFromCustomPalette(palette.id, idx)}
+                        className="absolute -right-1 -top-1 hidden h-3.5 w-3.5 items-center justify-center rounded-full bg-zinc-900 text-zinc-300 ring-1 ring-white/20 hover:text-rose-400 group-hover:flex cursor-pointer"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-zinc-500">Size</dt>
-            <dd className="font-mono text-zinc-300">[ / ]</dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-zinc-500">Swap</dt>
-            <dd className="font-mono text-zinc-300">X</dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-zinc-500">Grid</dt>
-            <dd className="font-mono text-zinc-300">G</dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-zinc-500">Pan</dt>
-            <dd className="font-mono text-zinc-300">Space</dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-zinc-500">Fit</dt>
-            <dd className="font-mono text-zinc-300">0</dd>
-          </div>
-        </dl>
+        )}
       </section>
-    </aside>
+    </div>
   );
 }

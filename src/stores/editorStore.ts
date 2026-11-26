@@ -11,6 +11,11 @@ import {
   type ShapeFillMode,
   type ToolId,
 } from "@/types/editor";
+import {
+  DEFAULT_SMART_FILL_CONFIG,
+  type SmartFillConfig,
+  type SmartFillPreviewSummary,
+} from "@/types/smartFill";
 import { colorsEqual, hexToRgba } from "@/core/image-processing/color";
 import {
   addColorToPalette,
@@ -21,12 +26,14 @@ import {
 
 const MAX_RECENT_COLORS = 12;
 
-export type InspectorTab = "colors" | "layers" | "context";
+export type InspectorTab = "colors" | "fill" | "layers" | "context";
 
 export interface EditorUIState {
   activeTool: ToolId;
   brushSize: number;
   shapeFillMode: ShapeFillMode;
+  smartFillConfig: SmartFillConfig;
+  smartFillPreview: SmartFillPreviewSummary;
   primaryColor: RGBA;
   secondaryColor: RGBA;
   recentColors: RGBA[];
@@ -44,6 +51,8 @@ export interface EditorUIState {
   setActiveTool: (tool: ToolId) => void;
   setBrushSize: (size: number) => void;
   setShapeFillMode: (mode: ShapeFillMode) => void;
+  setSmartFillConfig: (config: SmartFillConfig) => void;
+  setSmartFillPreview: (summary: SmartFillPreviewSummary) => void;
   setPrimaryColor: (color: RGBA) => void;
   setSecondaryColor: (color: RGBA) => void;
   swapColors: () => void;
@@ -72,6 +81,15 @@ export const useEditorStore = create<EditorUIState>((set) => ({
   activeTool: "pencil",
   brushSize: 1,
   shapeFillMode: "outline",
+  smartFillConfig: { ...DEFAULT_SMART_FILL_CONFIG },
+  smartFillPreview: {
+    active: false,
+    seedX: 0,
+    seedY: 0,
+    pixelCount: 0,
+    bounds: null,
+    mode: "solid",
+  },
   primaryColor: initialPrimary,
   secondaryColor: initialSecondary,
   recentColors: [initialPrimary, initialSecondary],
@@ -112,6 +130,8 @@ export const useEditorStore = create<EditorUIState>((set) => ({
       brushSize: Math.max(MIN_BRUSH_SIZE, Math.min(MAX_BRUSH_SIZE, Math.round(size))),
     }),
   setShapeFillMode: (shapeFillMode) => set({ shapeFillMode }),
+  setSmartFillConfig: (smartFillConfig) => set({ smartFillConfig: { ...smartFillConfig } }),
+  setSmartFillPreview: (smartFillPreview) => set({ smartFillPreview: { ...smartFillPreview } }),
   setPrimaryColor: (primaryColor) => set({ primaryColor: { ...primaryColor } }),
   setSecondaryColor: (secondaryColor) => set({ secondaryColor: { ...secondaryColor } }),
   swapColors: () =>

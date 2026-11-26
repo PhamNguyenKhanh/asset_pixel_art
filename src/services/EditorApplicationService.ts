@@ -20,6 +20,11 @@ import type {
   MaterialPreset,
   MaterialPresetId,
 } from "@/types/assetContext";
+import {
+  DEFAULT_SMART_FILL_CONFIG,
+  type SmartFillConfig,
+  type SmartFillPreviewSummary,
+} from "@/types/smartFill";
 import type { ITool, IToolContext, PointerInputEvent } from "@/core/contracts";
 import { PixelBuffer } from "@/core/document/PixelBuffer";
 import { Frame } from "@/core/document/Frame";
@@ -53,6 +58,8 @@ import { createDefaultTools } from "@/modules/drawing-tools/createDefaultTools";
 import * as LayerService from "@/modules/layers/LayerService";
 import * as FrameService from "@/modules/animation/FrameService";
 import { AssetContextManager } from "@/modules/asset-context/AssetContextManager";
+import { analyzeFillRegion, type AnalyzedRegion } from "@/modules/smart-fill/regionAnalyzer";
+import { renderSmartFillRegion } from "@/modules/smart-fill/smartFillEngine";
 import {
   deserializeProject,
   serializeProject,
@@ -63,6 +70,8 @@ export interface EditorServiceCallbacks {
   onActiveToolChange?: (tool: ToolId) => void;
   onBrushSizeChange?: (size: number) => void;
   onShapeFillModeChange?: (mode: ShapeFillMode) => void;
+  onSmartFillConfigChange?: (config: SmartFillConfig) => void;
+  onSmartFillPreviewChange?: (summary: SmartFillPreviewSummary) => void;
   onPrimaryColorChange?: (color: RGBA) => void;
   onSecondaryColorChange?: (color: RGBA) => void;
   onRecentColorRecorded?: (color: RGBA) => void;
@@ -93,6 +102,14 @@ export class EditorApplicationService {
   private activeToolId: ToolId = "pencil";
   private brushSize = 1;
   private shapeFillMode: ShapeFillMode = "outline";
+  private smartFillConfig: SmartFillConfig = { ...DEFAULT_SMART_FILL_CONFIG };
+  private pendingSmartFill: {
+    frameId: string;
+    layerId: string;
+    region: AnalyzedRegion;
+    baseColor: RGBA;
+    previewLayerBuffer: PixelBuffer;
+  } | null = null;
   private primaryColor: RGBA = { r: 245, g: 166, b: 35, a: 255 };
   private secondaryColor: RGBA = { r: 20, g: 22, b: 29, a: 255 };
   private showGrid = true;
@@ -274,6 +291,10 @@ export class EditorApplicationService {
     this.primaryColor = { ...color };
     this.syncCursorOverlay();
     this.callbacks.onPrimaryColorChange?.(this.getPrimaryColor());
+    if (this.pendingSmartFill) {
+      this.pendingSmartFill.baseColor = { ...color };
+      this.refreshPendingSmartFill(false);
+    }
   }
 
   setSecondaryColor(color: RGBA): void {
@@ -347,6 +368,7 @@ export class EditorApplicationService {
     name?: string,
     assetTypeId?: AssetTypeId,
   ): void {
+    this.cancelSmartFillPreview();
     this.getActiveTool().onCancel?.(this.createToolContext());
     this.document.reset(width, height, name ?? "Untitled Sprite");
     this.assetContext.setAssetType(assetTypeId ?? "custom");
@@ -355,6 +377,288 @@ export class EditorApplicationService {
     this.renderer.setDocument(this.document);
     this.fitViewport();
     this.bumpRevisionAndEmit();
+  }
+
+  // ---- Intelligent Color Fill (Phase 4) ----
+
+  getSmartFillConfig(): SmartFillConfig {
+    return { ...this.smartFillConfig };
+  }
+
+  getSmartFillPreviewSummary(): SmartFillPreviewSummary {
+    if (!this.pendingSmartFill) {
+      return {
+        active: false,
+        seedX: 0,
+        seedY: 0,
+        pixelCount: 0,
+        bounds: null,
+        mode: this.smartFillConfig.mode,
+      };
+    }
+    return {
+      active: true,
+      seedX: this.pendingSmartFill.region.seedX,
+      seedY: this.pendingSmartFill.region.seedY,
+      pixelCount: this.pendingSmartFill.region.pixelCount,
+      bounds: { ...this.pendingSmartFill.region.bounds },
+      mode: this.smartFillConfig.mode,
+    };
+  }
+
+  setSmartFillConfig(partial: Partial<SmartFillConfig>): void {
+    const prev = this.smartFillConfig;
+    const next: SmartFillConfig = {
+      ...prev,
+      ...partial,
+      colorVariation: Math.max(0, Math.min(1, partial.colorVariation ?? prev.colorVariation)),
+      brightnessVariation: Math.max(
+        0,
+        Math.min(1, partial.brightnessVariation ?? prev.brightnessVariation),
+      ),
+      saturationVariation: Math.max(
+        0,
+        Math.min(1, partial.saturationVariation ?? prev.saturationVariation),
+      ),
+      contrast: Math.max(0, Math.min(1, partial.contrast ?? prev.contrast)),
+      textureIntensity: Math.max(
+        0,
+        Math.min(1, partial.textureIntensity ?? prev.textureIntensity),
+      ),
+      tolerance: Math.max(0, Math.min(64, Math.round(partial.tolerance ?? prev.tolerance))),
+      seed: Math.max(0, Math.floor(partial.seed ?? prev.seed)),
+    };
+
+    this.smartFillConfig = next;
+    this.callbacks.onSmartFillConfigChange?.(this.getSmartFillConfig());
+
+    if (next.mode === "solid") {
+      if (this.pendingSmartFill) {
+        this.cancelSmartFillPreview();
+      }
+      return;
+    }
+
+    if (this.pendingSmartFill) {
+      const regionParamsChanged =
+        next.tolerance !== prev.tolerance ||
+        next.preserveOutlines !== prev.preserveOutlines ||
+        next.preserveTransparency !== prev.preserveTransparency;
+      this.refreshPendingSmartFill(regionParamsChanged);
+    }
+  }
+
+  applyMaterialPresetToSmartFill(materialId: MaterialPresetId): void {
+    const preset = this.assetContext.getMaterialPreset(materialId);
+    if (!preset) return;
+    this.assetContext.setPreferredMaterial(materialId);
+    this.document.assetContext = this.assetContext.getState();
+    this.setSmartFillConfig({
+      mode: "material",
+      materialId: preset.id,
+      colorVariation: preset.colorVariation,
+      brightnessVariation: preset.brightnessVariation,
+      saturationVariation: preset.saturationVariation,
+      contrast: preset.contrast,
+      textureIntensity: preset.textureIntensity,
+      distribution: preset.distribution,
+    });
+    this.emitDocumentMeta();
+  }
+
+  syncSmartFillFromAssetContext(): void {
+    const profile = this.assetContext.getActiveProfile();
+    const hints = profile.fillHints;
+    const preferredMat =
+      this.assetContext.getState().preferredMaterialId ??
+      hints.preferredMaterials[0] ??
+      "wood";
+    const nextMode =
+      this.smartFillConfig.mode === "solid" ? "smart" : this.smartFillConfig.mode;
+
+    this.setSmartFillConfig({
+      mode: nextMode,
+      materialId: preferredMat,
+      colorVariation: hints.colorVariation,
+      brightnessVariation: hints.brightnessVariation,
+      saturationVariation: hints.saturationVariation,
+      textureIntensity: hints.textureIntensity,
+      distribution: hints.distribution,
+      preserveOutlines: hints.preserveOutlines,
+    });
+  }
+
+  randomizeSmartFillSeed(): number {
+    const nextSeed = ((this.smartFillConfig.seed * 1664525 + 1013904223) >>> 0) % 999999;
+    this.setSmartFillConfig({ seed: nextSeed === this.smartFillConfig.seed ? nextSeed + 1 : nextSeed });
+    return this.smartFillConfig.seed;
+  }
+
+  startSmartFillPreview(seedX: number, seedY: number, baseColor: RGBA): boolean {
+    const frame = this.document.getActiveFrame();
+    const layer = this.document.getActiveLayer();
+    if (layer.locked || !layer.visible) return false;
+
+    const region = analyzeFillRegion(layer.buffer, seedX, seedY, {
+      tolerance: this.smartFillConfig.tolerance,
+      preserveOutlines: this.smartFillConfig.preserveOutlines,
+      preserveTransparency: this.smartFillConfig.preserveTransparency,
+    });
+    if (!region) {
+      this.cancelSmartFillPreview();
+      return false;
+    }
+
+    const previewLayerBuffer = this.buildCompositeSmartFillLayer(
+      layer.buffer,
+      region,
+      baseColor,
+    );
+
+    this.pendingSmartFill = {
+      frameId: frame.id,
+      layerId: layer.id,
+      region,
+      baseColor: { ...baseColor },
+      previewLayerBuffer,
+    };
+
+    this.renderer.setPreviewBuffer(previewLayerBuffer, true);
+    this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
+    return true;
+  }
+
+  applySmartFillPreview(): boolean {
+    const pending = this.pendingSmartFill;
+    if (!pending) return false;
+
+    const layer = this.document.getLayer(pending.frameId, pending.layerId);
+    if (!layer || layer.locked || !layer.visible) {
+      this.cancelSmartFillPreview();
+      return false;
+    }
+
+    const rect = pending.region.bounds;
+    const beforePixels = layer.buffer.extractRect(rect);
+    const afterPixels = pending.previewLayerBuffer.extractRect(rect);
+
+    // Check whether pixels actually changed before committing to history
+    let mutated = false;
+    for (let i = 0; i < beforePixels.length; i++) {
+      if (beforePixels[i] !== afterPixels[i]) {
+        mutated = true;
+        break;
+      }
+    }
+
+    this.renderer.setPreviewBuffer(null);
+    this.pendingSmartFill = null;
+    this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
+
+    if (!mutated) return false;
+
+    layer.buffer.writeRect(rect, afterPixels);
+    this.history.pushExecuted(
+      new PixelPatchCommand({
+        name:
+          this.smartFillConfig.mode === "material"
+            ? `Material Fill (${this.smartFillConfig.materialId})`
+            : "Smart Color Fill",
+        document: this.document,
+        frameId: pending.frameId,
+        layerId: pending.layerId,
+        rect,
+        beforePixels,
+        afterPixels,
+        onApplied: (appliedRect) => {
+          this.renderer.markPixelsDirty(appliedRect);
+          this.bumpRevisionAndEmit();
+        },
+      }),
+    );
+
+    if (pending.baseColor.a > 0) {
+      this.callbacks.onRecentColorRecorded?.({ ...pending.baseColor });
+    }
+    this.renderer.markPixelsDirty(rect);
+    this.bumpRevisionAndEmit();
+    return true;
+  }
+
+  cancelSmartFillPreview(): void {
+    if (!this.pendingSmartFill) return;
+    this.pendingSmartFill = null;
+    this.renderer.setPreviewBuffer(null);
+    this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
+  }
+
+  private buildCompositeSmartFillLayer(
+    sourceLayerBuffer: PixelBuffer,
+    region: AnalyzedRegion,
+    baseColor: RGBA,
+  ): PixelBuffer {
+    const regionOnly = renderSmartFillRegion(
+      sourceLayerBuffer,
+      region,
+      baseColor,
+      this.smartFillConfig,
+    );
+    const merged = sourceLayerBuffer.clone();
+    const { minX, minY } = region.bounds;
+    for (let ly = 0; ly < region.height; ly++) {
+      const gy = minY + ly;
+      for (let lx = 0; lx < region.width; lx++) {
+        if (region.mask[ly * region.width + lx] === 0) continue;
+        const gx = minX + lx;
+        merged.setPacked(gx, gy, regionOnly.getPacked(gx, gy));
+      }
+    }
+    return merged;
+  }
+
+  private refreshPendingSmartFill(reanalyzeRegion: boolean): void {
+    const pending = this.pendingSmartFill;
+    if (!pending) return;
+
+    const layer = this.document.getLayer(pending.frameId, pending.layerId);
+    if (!layer) {
+      this.cancelSmartFillPreview();
+      return;
+    }
+
+    let region = pending.region;
+    if (reanalyzeRegion) {
+      const nextRegion = analyzeFillRegion(
+        layer.buffer,
+        pending.region.seedX,
+        pending.region.seedY,
+        {
+          tolerance: this.smartFillConfig.tolerance,
+          preserveOutlines: this.smartFillConfig.preserveOutlines,
+          preserveTransparency: this.smartFillConfig.preserveTransparency,
+        },
+      );
+      if (!nextRegion) {
+        this.cancelSmartFillPreview();
+        return;
+      }
+      region = nextRegion;
+    }
+
+    const previewLayerBuffer = this.buildCompositeSmartFillLayer(
+      layer.buffer,
+      region,
+      pending.baseColor,
+    );
+
+    this.pendingSmartFill = {
+      ...pending,
+      region,
+      previewLayerBuffer,
+    };
+
+    this.renderer.setPreviewBuffer(previewLayerBuffer, true);
+    this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
   }
 
   // ---- Dynamic Asset Context ----
@@ -733,6 +1037,7 @@ export class EditorApplicationService {
   selectFrame(index: number): void {
     if (index < 0 || index >= this.document.frames.length) return;
     if (index === this.document.activeFrameIndex) return;
+    this.cancelSmartFillPreview();
     this.getActiveTool().onCancel?.(this.createToolContext());
     this.document.setActiveFrameIndex(index);
     this.renderer.markAllDirty();
@@ -900,6 +1205,7 @@ export class EditorApplicationService {
   // ---- Undo / Redo ----
 
   undo(): boolean {
+    this.cancelSmartFillPreview();
     const undone = this.history.undo();
     if (!undone) return false;
     this.renderer.setDocument(this.document);
@@ -908,6 +1214,7 @@ export class EditorApplicationService {
   }
 
   redo(): boolean {
+    this.cancelSmartFillPreview();
     const redone = this.history.redo();
     if (!redone) return false;
     this.renderer.setDocument(this.document);
@@ -1013,6 +1320,9 @@ export class EditorApplicationService {
       markDirty: (rect?: DirtyRect) => this.renderer.markPixelsDirty(rect),
       notifyDocumentChanged: () => this.bumpRevisionAndEmit(),
       getAssetContext: () => this.assetContext.getActiveProfile(),
+      getSmartFillConfig: () => this.getSmartFillConfig(),
+      startSmartFillPreview: (sx, sy, color) => this.startSmartFillPreview(sx, sy, color),
+      cancelSmartFillPreview: () => this.cancelSmartFillPreview(),
     };
   }
 
@@ -1090,6 +1400,8 @@ export class EditorApplicationService {
     this.callbacks.onActiveToolChange?.(this.activeToolId);
     this.callbacks.onBrushSizeChange?.(this.brushSize);
     this.callbacks.onShapeFillModeChange?.(this.shapeFillMode);
+    this.callbacks.onSmartFillConfigChange?.(this.getSmartFillConfig());
+    this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
     this.callbacks.onPrimaryColorChange?.(this.getPrimaryColor());
     this.callbacks.onSecondaryColorChange?.(this.getSecondaryColor());
     this.callbacks.onZoomChange?.(this.viewport.zoom);
@@ -1121,7 +1433,26 @@ export class EditorApplicationService {
       { key: "y", ctrlOrMeta: true, action: () => this.redo(), description: "Redo" },
       { key: "a", ctrlOrMeta: true, action: () => this.selectAll(), description: "Select All" },
       { key: "d", ctrlOrMeta: true, action: () => this.clearSelection(), description: "Deselect" },
-      { key: "Escape", action: () => this.clearSelection(), description: "Clear Selection" },
+      {
+        key: "Escape",
+        action: () => {
+          if (this.pendingSmartFill) {
+            this.cancelSmartFillPreview();
+          } else {
+            this.clearSelection();
+          }
+        },
+        description: "Cancel Preview / Clear Selection",
+      },
+      {
+        key: "Enter",
+        action: () => {
+          if (this.pendingSmartFill) {
+            this.applySmartFillPreview();
+          }
+        },
+        description: "Apply Active Preview",
+      },
       { key: "Delete", action: () => this.deleteSelection(), description: "Delete Selection" },
       { key: "Backspace", action: () => this.deleteSelection(), description: "Delete Selection" },
       { key: "c", ctrlOrMeta: true, action: () => this.copySelection(), description: "Copy Selection" },

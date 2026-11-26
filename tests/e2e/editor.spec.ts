@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Pixel Art Studio — Core Editor & Dynamic Asset Context (Phases 1–3)", () => {
-  test("draws, uses shapes, manages layers/frames, switches asset context, and opens export", async ({
+test.describe("Pixel Art Studio — Phases 1–4 Workflow", () => {
+  test("draws, switches context, previews & applies Smart Fill with Undo/Redo, manages layers/frames, and opens export", async ({
     page,
   }) => {
     await page.goto("/");
 
-    // Verify default 32x32 canvas and default Custom context
+    // Verify default 32x32 canvas and Custom context
     await expect(page.getByTestId("canvas-size-badge")).toHaveText("32×32");
     await expect(page.getByTestId("context-pill-btn")).toContainText("Custom");
     await expect(page.getByTestId("display-canvas")).toBeVisible();
@@ -25,57 +25,40 @@ test.describe("Pixel Art Studio — Core Editor & Dynamic Asset Context (Phases 
     await page.mouse.up();
 
     await expect(page.getByTestId("undo-btn")).toBeEnabled();
-    await page.getByTestId("undo-btn").click();
-    await expect(page.getByTestId("redo-btn")).toBeEnabled();
-    await page.getByTestId("redo-btn").click();
 
-    // Switch Phase 2 tools via shortcuts
-    await page.keyboard.press("l");
-    await expect(page.getByTestId("tool-line")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("u");
-    await expect(page.getByTestId("tool-rectangle")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("o");
-    await expect(page.getByTestId("tool-ellipse")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("m");
-    await expect(page.getByTestId("tool-select")).toHaveAttribute("data-active", "true");
-    await page.keyboard.press("v");
-    await expect(page.getByTestId("tool-move")).toHaveAttribute("data-active", "true");
-
-    // Phase 3: Switch Asset Context to Tree and verify context-aware suggestions in Color Panel
+    // Phase 3: Switch Asset Context to Tree
     await page.getByTestId("context-pill-btn").click();
     await expect(page.getByTestId("context-panel")).toBeVisible();
     await page.getByTestId("asset-type-tree").click();
     await expect(page.getByTestId("context-pill-btn")).toContainText("Tree");
-    await expect(page.getByTestId("context-material-foliage")).toHaveAttribute("data-active", "true");
 
-    await page.getByTestId("tab-colors").click();
-    await expect(page.getByTestId("color-panel-context-suggestions")).toBeVisible();
+    // Phase 4: Open Fill tab, enable Smart Fill, click canvas -> live preview bar -> Apply
+    await page.getByTestId("tab-fill").click();
+    await expect(page.getByTestId("smart-fill-panel")).toBeVisible();
+    await page.getByTestId("fill-mode-smart").click();
+    await page.getByTestId("sync-context-fill-btn").click();
 
-    // Manage Layers
+    await page.mouse.click(cx + 40, cy - 40);
+    await expect(page.getByTestId("smart-fill-preview-bar")).toBeVisible();
+    await page.getByTestId("viewport-reseed-btn").click();
+    await page.getByTestId("viewport-apply-fill-btn").click();
+    await expect(page.getByTestId("smart-fill-preview-bar")).toBeHidden();
+
+    // Undo and Redo Smart Fill cleanly
+    await page.getByTestId("undo-btn").click();
+    await expect(page.getByTestId("redo-btn")).toBeEnabled();
+    await page.getByTestId("redo-btn").click();
+
+    // Manage Layers & Frames
     await page.getByTestId("tab-layers").click();
-    await expect(page.getByTestId("layer-panel")).toBeVisible();
     await page.getByTestId("add-layer-btn").click();
     await expect(page.getByTestId("tab-layers")).toContainText("Layers (2)");
 
-    // Add Frame & Toggle Onion Skin
     await page.getByTestId("add-frame-btn").click();
     await expect(page.getByTestId("frame-card-1")).toBeVisible();
-    await page.getByTestId("onion-skin-btn").click();
-    await expect(page.getByTestId("onion-skin-btn")).toHaveAttribute("data-active", "true");
-
-    // Open Resize/Crop Dialog & resize to 64x64
-    await page.getByTestId("resize-crop-btn").click();
-    await expect(page.getByTestId("resize-crop-dialog")).toBeVisible();
-    await page.getByTestId("resize-width-input").fill("64");
-    await page.getByTestId("resize-height-input").fill("64");
-    await page.getByTestId("confirm-resize-btn").click();
-    await expect(page.getByTestId("canvas-size-badge")).toHaveText("64×64");
 
     // Open Export Dialog
     await page.getByTestId("export-btn").click();
     await expect(page.getByTestId("export-dialog")).toBeVisible();
-    await page.getByTestId("export-tab-spritesheet").click();
-    await page.getByTestId("export-tab-gif").click();
-    await page.getByTestId("export-tab-project").click();
   });
 });

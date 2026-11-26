@@ -1,4 +1,5 @@
 import type { DirtyRect, RGBA, SelectionRect, ShapeFillMode, ToolId } from "@/types/editor";
+import type { SmartFillConfig } from "@/types/smartFill";
 import type {
   AssetContextProfile,
   AssetContextState,
@@ -46,6 +47,9 @@ export interface IToolContext {
   markDirty(rect?: DirtyRect): void;
   notifyDocumentChanged(): void;
   getAssetContext(): AssetContextProfile;
+  getSmartFillConfig(): SmartFillConfig;
+  startSmartFillPreview(seedX: number, seedY: number, baseColor: RGBA): boolean;
+  cancelSmartFillPreview(): void;
 }
 
 export interface ITool {

@@ -4,6 +4,12 @@ import { packColor, unpackRGBA } from "@/core/image-processing/color";
 import { scanlineFloodFill } from "@/core/image-processing/floodFill";
 import { PixelPatchCommand } from "@/core/history/PixelPatchCommand";
 
+/**
+ * Unified Bucket Fill Tool supporting all 3 modes:
+ * - Solid Fill: instant Piskel-style single-color flood fill.
+ * - Smart Color Fill: controlled spatially coherent color variation with Live Preview / Apply.
+ * - Material Fill: structured pixel-art material fills (Wood, Stone, Grass, Foliage, Metal, Fabric, Skin) with Live Preview / Apply.
+ */
 export class BucketFillTool implements ITool {
   readonly id = "bucket" as const;
   readonly label = "Bucket Fill";
@@ -13,11 +19,20 @@ export class BucketFillTool implements ITool {
   onPointerDown(event: PointerInputEvent, ctx: IToolContext): void {
     const layer = ctx.document.getActiveLayer();
     if (layer.locked || !layer.visible) return;
+    if (!layer.buffer.isInBounds(event.pixelX, event.pixelY)) return;
 
-    const frame = ctx.document.getActiveFrame();
     const color = event.button === 2 ? ctx.getSecondaryColor() : ctx.getPrimaryColor();
-    const packed = packColor(color);
+    const fillConfig = ctx.getSmartFillConfig();
 
+    // Modes 2 & 3: Smart Color Fill / Material Fill -> Non-destructive Live Preview
+    if (fillConfig.mode === "smart" || fillConfig.mode === "material") {
+      ctx.startSmartFillPreview(event.pixelX, event.pixelY, color);
+      return;
+    }
+
+    // Mode 1: Solid Fill -> Instant commit with minimal DirtyRect Undo command
+    const frame = ctx.document.getActiveFrame();
+    const packed = packColor(color);
     const result = scanlineFloodFill(layer.buffer, event.pixelX, event.pixelY, packed);
     if (!result.changed || !result.dirtyRect) {
       return;
@@ -28,7 +43,6 @@ export class BucketFillTool implements ITool {
     const beforePixels = new Uint8ClampedArray(afterPixels.length);
     beforePixels.set(afterPixels);
 
-    // Restore original targetColor only along filled spans inside the dirty patch
     const { width: patchW } = getDirtyRectSize(rect);
     const prevRgba = unpackRGBA(result.targetColor);
 
@@ -68,10 +82,14 @@ export class BucketFillTool implements ITool {
   }
 
   onPointerMove(_event: PointerInputEvent, _ctx: IToolContext): void {
-    // Bucket fill executes on pointer down
+    // Fill executes or previews on pointer down
   }
 
   onPointerUp(_event: PointerInputEvent, _ctx: IToolContext): void {
     // No-op
+  }
+
+  onCancel(ctx: IToolContext): void {
+    ctx.cancelSmartFillPreview();
   }
 }

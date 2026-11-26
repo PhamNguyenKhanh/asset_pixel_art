@@ -16,6 +16,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       onActiveToolChange: (tool) => useEditorStore.getState().setActiveTool(tool),
       onBrushSizeChange: (size) => useEditorStore.getState().setBrushSize(size),
       onShapeFillModeChange: (mode) => useEditorStore.getState().setShapeFillMode(mode),
+      onSmartFillConfigChange: (config) => useEditorStore.getState().setSmartFillConfig(config),
+      onSmartFillPreviewChange: (summary) => useEditorStore.getState().setSmartFillPreview(summary),
       onPrimaryColorChange: (color) => useEditorStore.getState().setPrimaryColor(color),
       onSecondaryColorChange: (color) => useEditorStore.getState().setSecondaryColor(color),
       onRecentColorRecorded: (color) => useEditorStore.getState().recordRecentColor(color),

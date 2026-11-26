@@ -48,11 +48,15 @@ export function ToolRail() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const brushSize = useEditorStore((s) => s.brushSize);
   const shapeFillMode = useEditorStore((s) => s.shapeFillMode);
+  const fillMode = useEditorStore((s) => s.smartFillConfig.mode);
+  const setRightPanelOpen = useEditorStore((s) => s.setRightPanelOpen);
+  const setInspectorTab = useEditorStore((s) => s.setInspectorTab);
   const primaryColor = useEditorStore((s) => s.primaryColor);
   const secondaryColor = useEditorStore((s) => s.secondaryColor);
   const selection = useEditorStore((s) => s.documentMeta.selection);
 
   const showShapeOptions = activeTool === "rectangle" || activeTool === "ellipse";
+  const showFillOptions = activeTool === "bucket";
 
   return (
     <aside className="flex w-[86px] shrink-0 flex-col items-center justify-between border-r border-white/8 bg-[#181b22] px-1.5 py-2.5 select-none">
@@ -124,6 +128,41 @@ export function ToolRail() {
             })}
           </div>
         </div>
+
+        {/* Bucket Fill Mode Quick Toggle (Solid / Smart / Material) */}
+        {showFillOptions && (
+          <div className="flex w-full flex-col items-center gap-1">
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+              Fill
+            </span>
+            <div className="flex w-full flex-col gap-1">
+              {(
+                [
+                  ["solid", "Solid"],
+                  ["smart", "Smart"],
+                  ["material", "Mat"],
+                ] as const
+              ).map(([modeId, label]) => (
+                <button
+                  key={modeId}
+                  type="button"
+                  data-testid={`rail-fill-mode-${modeId}`}
+                  data-active={fillMode === modeId}
+                  onClick={() => {
+                    service.setSmartFillConfig({ mode: modeId });
+                    if (modeId !== "solid") {
+                      setRightPanelOpen(true);
+                      setInspectorTab("fill");
+                    }
+                  }}
+                  className="rounded border border-white/10 bg-[#12141a] py-1 text-[10px] font-medium text-zinc-400 data-[active=true]:border-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-300 cursor-pointer"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Shape Fill Mode (Outline vs Filled) */}
         {showShapeOptions && (

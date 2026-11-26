@@ -14,6 +14,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Redo2,
+  RotateCcw,
   RotateCw,
   Scaling,
   Sun,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import { useEditorService } from "@/hooks/EditorContext";
 import { useEditorStore } from "@/stores/editorStore";
+import { resetLocalBrowserData } from "@/lib/localAutosave";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -55,6 +57,15 @@ export function TopActionBar({
 
   const zoomPercent = Math.round(zoom * 100);
   const activeContextProfile = service.getAssetContextProfile();
+
+  const handleResetLocalDb = async () => {
+    const confirmed = window.confirm(
+      "Xóa toàn bộ dữ liệu lưu cục bộ (LocalDB / bản nháp tự lưu) và tải lại trang?"
+    );
+    if (!confirmed) return;
+    await resetLocalBrowserData();
+    window.location.reload();
+  };
 
   return (
     <header className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-white/8 bg-[#181b22] px-3 select-none">
@@ -369,6 +380,22 @@ export function TopActionBar({
 
       {/* Phải: Phím tắt & Đóng/mở bảng */}
       <div className="flex items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => void handleResetLocalDb()}
+              aria-label="Reset dữ liệu cục bộ"
+              data-testid="reset-localdb-btn"
+              className="h-8 w-8 text-zinc-400 hover:text-rose-400"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Reset LocalDB (Xóa bản nháp cục bộ &amp; tải lại)</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

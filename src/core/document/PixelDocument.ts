@@ -7,6 +7,7 @@ import {
   type SelectionRect,
 } from "@/types/editor";
 import type { AssetContextState } from "@/types/assetContext";
+import { createDefaultLightingConfig, type LightingConfig } from "@/types/lighting";
 import { Frame } from "@/core/document/Frame";
 import { Layer } from "@/core/document/Layer";
 
@@ -57,6 +58,7 @@ export class PixelDocument {
   onionSkin: OnionSkinConfig;
   selection: SelectionRect | null;
   assetContext: AssetContextState;
+  lighting: LightingConfig;
 
   constructor(
     width: number = CANVAS_LIMITS.DEFAULT_SIZE,
@@ -83,6 +85,7 @@ export class PixelDocument {
       assetTypeId: "custom",
       preferredMaterialId: "wood",
     };
+    this.lighting = createDefaultLightingConfig();
     const initialFrame = new Frame(width, height, {
       durationMs: Math.round(1000 / DEFAULT_FPS),
     });
@@ -170,6 +173,7 @@ export class PixelDocument {
       assetTypeId: "custom",
       preferredMaterialId: "wood",
     };
+    this.lighting = createDefaultLightingConfig();
     const initialFrame = new Frame(width, height, {
       durationMs: Math.round(1000 / this.fps),
     });

@@ -15,6 +15,7 @@ import {
   Redo2,
   RotateCw,
   Scaling,
+  Sun,
   Undo2,
   Upload,
   ZoomIn,
@@ -47,6 +48,7 @@ export function TopActionBar({
   const setInspectorTab = useEditorStore((s) => s.setInspectorTab);
   const timelineOpen = useEditorStore((s) => s.timelineOpen);
   const setTimelineOpen = useEditorStore((s) => s.setTimelineOpen);
+  const lightingEnabled = useEditorStore((s) => s.lightingConfig.enabled);
 
   const zoomPercent = Math.round(zoom * 100);
   const activeContextProfile = service.getAssetContextProfile();
@@ -103,6 +105,30 @@ export function TopActionBar({
             </TooltipTrigger>
             <TooltipContent>
               Asset Context: {activeContextProfile.label} (Click to change)
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                data-testid="lighting-pill-btn"
+                onClick={() => {
+                  setRightPanelOpen(true);
+                  setInspectorTab("lighting");
+                }}
+                className={`flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium transition-colors cursor-pointer ${
+                  lightingEnabled
+                    ? "border-amber-400/50 bg-amber-500/20 text-amber-300"
+                    : "border-white/10 bg-[#111318] text-zinc-400 hover:border-white/25 hover:text-zinc-200"
+                }`}
+              >
+                <Sun className="h-3 w-3" />
+                <span>{lightingEnabled ? "Lit" : "Light"}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Dynamic Lighting Studio ({lightingEnabled ? "Active" : "Off"})
             </TooltipContent>
           </Tooltip>
         </div>

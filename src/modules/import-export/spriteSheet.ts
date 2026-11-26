@@ -12,6 +12,7 @@ export interface SpriteSheetOptions {
   columns?: number;
   padding?: number;
   scale?: number;
+  postProcessFrame?: (buffer: PixelBuffer, frameIndex: number) => PixelBuffer;
 }
 
 export interface SpriteSheetFrameEntry {
@@ -76,7 +77,10 @@ export function buildSpriteSheet(
 
   for (let fi = 0; fi < frameCount; fi++) {
     const frame = doc.frames[fi]!;
-    const composited = compositeLayers(frame.layers, doc.width, doc.height);
+    const rawComposited = compositeLayers(frame.layers, doc.width, doc.height);
+    const composited = options.postProcessFrame
+      ? options.postProcessFrame(rawComposited, fi)
+      : rawComposited;
     const frameBuf =
       scale === 1 ? composited : scaleBufferNearestNeighbor(composited, cellW, cellH);
 

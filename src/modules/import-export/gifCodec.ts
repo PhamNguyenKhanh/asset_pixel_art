@@ -10,6 +10,7 @@ import {
 export interface GifExportOptions {
   scale?: number;
   repeat?: number; // 0 = loop forever, -1 = play once
+  postProcessFrame?: (buffer: PixelBuffer, frameIndex: number) => PixelBuffer;
 }
 
 export interface DecodedGifFrame {
@@ -142,7 +143,10 @@ export function encodeGif(
 
   for (let fi = 0; fi < doc.frames.length; fi++) {
     const frame = doc.frames[fi]!;
-    const composited = compositeLayers(frame.layers, doc.width, doc.height);
+    const rawComposited = compositeLayers(frame.layers, doc.width, doc.height);
+    const composited = options.postProcessFrame
+      ? options.postProcessFrame(rawComposited, fi)
+      : rawComposited;
     const scaled =
       scale === 1
         ? composited

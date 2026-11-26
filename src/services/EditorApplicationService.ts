@@ -25,6 +25,12 @@ import {
   type SmartFillConfig,
   type SmartFillPreviewSummary,
 } from "@/types/smartFill";
+import {
+  createDefaultLightingConfig,
+  type LightingBakeScope,
+  type LightingConfig,
+  type SurfaceMaskPaintMode,
+} from "@/types/lighting";
 import type { ITool, IToolContext, PointerInputEvent } from "@/core/contracts";
 import { PixelBuffer } from "@/core/document/PixelBuffer";
 import { Frame } from "@/core/document/Frame";
@@ -42,6 +48,7 @@ import { RenderingEngine } from "@/core/rendering/RenderingEngine";
 import { InputController } from "@/core/input/InputController";
 import { ShortcutManager } from "@/core/input/ShortcutManager";
 import { TRANSPARENT_PACKED } from "@/core/image-processing/color";
+import { bresenhamLine, getSquareBrushOffsets } from "@/core/image-processing/bresenham";
 import {
   clampSelectionRect,
   compositeLayers,
@@ -61,6 +68,10 @@ import { AssetContextManager } from "@/modules/asset-context/AssetContextManager
 import { analyzeFillRegion, type AnalyzedRegion } from "@/modules/smart-fill/regionAnalyzer";
 import { renderSmartFillRegion } from "@/modules/smart-fill/smartFillEngine";
 import {
+  applyDynamicLightingToBuffer,
+  DynamicLightingPipeline,
+} from "@/modules/lighting/lightingPipeline";
+import {
   deserializeProject,
   serializeProject,
   type SerializedProject,
@@ -72,6 +83,8 @@ export interface EditorServiceCallbacks {
   onShapeFillModeChange?: (mode: ShapeFillMode) => void;
   onSmartFillConfigChange?: (config: SmartFillConfig) => void;
   onSmartFillPreviewChange?: (summary: SmartFillPreviewSummary) => void;
+  onLightingConfigChange?: (config: LightingConfig) => void;
+  onSurfaceMaskModeChange?: (mode: SurfaceMaskPaintMode) => void;
   onPrimaryColorChange?: (color: RGBA) => void;
   onSecondaryColorChange?: (color: RGBA) => void;
   onRecentColorRecorded?: (color: RGBA) => void;
@@ -93,6 +106,7 @@ export class EditorApplicationService {
   readonly history: HistoryManager;
   readonly renderer: RenderingEngine;
   readonly assetContext: AssetContextManager;
+  readonly lightingPipeline: DynamicLightingPipeline;
 
   private readonly tools: Record<ToolId, ITool>;
   private readonly input: InputController;
@@ -110,6 +124,8 @@ export class EditorApplicationService {
     baseColor: RGBA;
     previewLayerBuffer: PixelBuffer;
   } | null = null;
+  private surfaceMaskMode: SurfaceMaskPaintMode = "none";
+  private isPaintingSurfaceMask = false;
   private primaryColor: RGBA = { r: 245, g: 166, b: 35, a: 255 };
   private secondaryColor: RGBA = { r: 20, g: 22, b: 29, a: 255 };
   private showGrid = true;
@@ -132,6 +148,13 @@ export class EditorApplicationService {
     this.renderer = new RenderingEngine(this.document, this.viewport);
     this.assetContext = new AssetContextManager();
     this.document.assetContext = this.assetContext.getState();
+    this.lightingPipeline = new DynamicLightingPipeline(
+      this.document.lighting,
+      () => this.assetContext.getActiveProfile(),
+      () => this.document.getActiveLayer().surfaceMaps,
+    );
+    this.renderer.setLightingPipeline(this.lightingPipeline);
+    this.syncLightGizmoOverlay();
     this.tools = createDefaultTools();
 
     this.input = new InputController(this.viewport, {
@@ -140,6 +163,9 @@ export class EditorApplicationService {
       onToolPointerUp: (event) => this.handleToolPointerUp(event),
       onHoverPixelChange: (pixel) => this.handleHoverPixelChange(pixel),
       onViewportChanged: () => this.handleViewportChanged(),
+      hitTestLightGizmo: (sx, sy) => this.hitTestLightGizmo(sx, sy),
+      onDragLightGizmo: (sx, sy) => this.handleDragLightGizmo(sx, sy),
+      onEndDragLightGizmo: () => this.bumpRevisionAndEmit(),
     });
 
     this.shortcuts = new ShortcutManager();
@@ -220,7 +246,26 @@ export class EditorApplicationService {
   getCompositedFrameBuffer(frameIndex: number): PixelBuffer | null {
     const frame = this.document.frames[frameIndex];
     if (!frame) return null;
-    return compositeLayers(frame.layers, this.document.width, this.document.height);
+    const raw = compositeLayers(frame.layers, this.document.width, this.document.height);
+    return this.applyLightingToBuffer(raw, frameIndex);
+  }
+
+  applyLightingToBuffer(source: PixelBuffer, frameIndex?: number): PixelBuffer {
+    if (!this.document.lighting.enabled) return source;
+    const frame =
+      frameIndex !== undefined
+        ? this.document.frames[frameIndex]
+        : this.document.getActiveFrame();
+    const targetLayer = frame?.getLayerById(this.document.activeLayerId) ?? frame?.layers[0];
+    const lit = new PixelBuffer(source.width, source.height);
+    applyDynamicLightingToBuffer(
+      source,
+      lit,
+      this.document.lighting,
+      this.assetContext.getActiveProfile(),
+      targetLayer?.surfaceMaps,
+    );
+    return lit;
   }
 
   attachViewport(
@@ -373,6 +418,10 @@ export class EditorApplicationService {
     this.document.reset(width, height, name ?? "Untitled Sprite");
     this.assetContext.setAssetType(assetTypeId ?? "custom");
     this.document.assetContext = this.assetContext.getState();
+    this.lightingPipeline.setConfig(this.document.lighting);
+    this.setSurfaceMaskMode("none");
+    this.syncLightGizmoOverlay();
+    this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
     this.history.clear();
     this.renderer.setDocument(this.document);
     this.fitViewport();
@@ -592,6 +641,235 @@ export class EditorApplicationService {
     this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
   }
 
+  // ---- Dynamic Lighting & Shadow System (Phase 5) ----
+
+  getLightingConfig(): LightingConfig {
+    return {
+      ...this.document.lighting,
+      lightColor: { ...this.document.lighting.lightColor },
+    };
+  }
+
+  getSurfaceMaskMode(): SurfaceMaskPaintMode {
+    return this.surfaceMaskMode;
+  }
+
+  setSurfaceMaskMode(mode: SurfaceMaskPaintMode): void {
+    if (this.surfaceMaskMode === mode) return;
+    this.surfaceMaskMode = mode;
+    this.callbacks.onSurfaceMaskModeChange?.(mode);
+  }
+
+  setLightingConfig(partial: Partial<LightingConfig>): void {
+    const prev = this.document.lighting;
+    const next: LightingConfig = {
+      ...prev,
+      ...partial,
+      lightX: Math.max(-1.6, Math.min(1.6, partial.lightX ?? prev.lightX)),
+      lightY: Math.max(-1.6, Math.min(1.6, partial.lightY ?? prev.lightY)),
+      lightElevation: Math.max(
+        0.15,
+        Math.min(1.0, partial.lightElevation ?? prev.lightElevation),
+      ),
+      intensity: Math.max(0, Math.min(1.8, partial.intensity ?? prev.intensity)),
+      ambientLight: Math.max(0, Math.min(1, partial.ambientLight ?? prev.ambientLight)),
+      shadowIntensity: Math.max(0, Math.min(1, partial.shadowIntensity ?? prev.shadowIntensity)),
+      shadowSoftness: Math.max(0, Math.min(1, partial.shadowSoftness ?? prev.shadowSoftness)),
+      shadowLength: Math.max(0, Math.min(1, partial.shadowLength ?? prev.shadowLength)),
+      shadingSteps: Math.max(0, Math.min(8, Math.round(partial.shadingSteps ?? prev.shadingSteps))),
+      hueShiftStrength: Math.max(0, Math.min(1, partial.hueShiftStrength ?? prev.hueShiftStrength)),
+      lightColor: partial.lightColor
+        ? { ...partial.lightColor }
+        : { ...prev.lightColor },
+    };
+
+    this.document.lighting = next;
+    this.lightingPipeline.setConfig(next);
+    if (!next.enabled && this.surfaceMaskMode !== "none") {
+      this.setSurfaceMaskMode("none");
+    }
+    this.syncLightGizmoOverlay();
+    this.renderer.markAllDirty();
+    this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
+    this.bumpRevisionAndEmit();
+  }
+
+  syncLightingFromAssetContext(): void {
+    const hints = this.assetContext.getActiveProfile().lightingHints;
+    const rad = (hints.defaultLightAngleDeg * Math.PI) / 180;
+    const radius = 0.95;
+    this.setLightingConfig({
+      enabled: true,
+      lightX: Math.round(Math.cos(rad) * radius * 100) / 100,
+      lightY: Math.round(Math.sin(rad) * radius * 100) / 100,
+      intensity: hints.defaultIntensity,
+      ambientLight: hints.defaultAmbient,
+      shadowIntensity: hints.defaultShadowIntensity,
+      shadingSteps: hints.shadingSteps,
+      hueShiftStrength: hints.hueShiftStrength,
+    });
+  }
+
+  resetLighting(): void {
+    const defaults = createDefaultLightingConfig();
+    this.document.lighting = defaults;
+    this.lightingPipeline.setConfig(defaults);
+    this.setSurfaceMaskMode("none");
+    this.syncLightGizmoOverlay();
+    this.renderer.markAllDirty();
+    this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
+    this.bumpRevisionAndEmit();
+  }
+
+  clearActiveLayerSurfaceMasks(): void {
+    const layer = this.document.getActiveLayer();
+    if (!layer.surfaceMaps) return;
+    layer.surfaceMaps = undefined;
+    this.renderer.markAllDirty();
+    this.bumpRevisionAndEmit();
+  }
+
+  /**
+   * Bakes the non-destructive dynamic lighting into actual pixel buffers cleanly
+   * with full Undo/Redo support, then disables live preview to prevent double-lighting.
+   */
+  applyLightingBake(scope: LightingBakeScope = "current-frame"): boolean {
+    if (!this.document.lighting.enabled) return false;
+    this.cancelSmartFillPreview();
+
+    const configForBake: LightingConfig = {
+      ...this.getLightingConfig(),
+      previewMode: "lit",
+    };
+    const contextProfile = this.assetContext.getActiveProfile();
+
+    if (scope === "current-layer") {
+      const layer = this.document.getActiveLayer();
+      if (layer.locked || !layer.visible) return false;
+      const lit = new PixelBuffer(layer.buffer.width, layer.buffer.height);
+      applyDynamicLightingToBuffer(
+        layer.buffer,
+        lit,
+        configForBake,
+        contextProfile,
+        layer.surfaceMaps,
+      );
+      const changed = this.commitLayerBufferChange("Bake Lighting (Layer)", lit);
+      this.setLightingConfig({ enabled: false });
+      return changed;
+    }
+
+    const label =
+      scope === "all-frames" ? "Bake Lighting (All Frames)" : "Bake Lighting (Current Frame)";
+    const targetFrames =
+      scope === "all-frames"
+        ? this.document.frames
+        : [this.document.getActiveFrame()];
+
+    const baked = this.runStructuralMutation(label, () => {
+      let anyMutated = false;
+      for (const frame of targetFrames) {
+        for (const layer of frame.layers) {
+          if (!layer.visible || layer.locked) continue;
+          const lit = new PixelBuffer(layer.buffer.width, layer.buffer.height);
+          applyDynamicLightingToBuffer(
+            layer.buffer,
+            lit,
+            configForBake,
+            contextProfile,
+            layer.surfaceMaps,
+          );
+          if (layer.buffer.computeDiffRect(lit)) {
+            layer.buffer.data.set(lit.data);
+            anyMutated = true;
+          }
+        }
+      }
+      return anyMutated;
+    });
+
+    this.setLightingConfig({ enabled: false });
+    return baked;
+  }
+
+  private syncLightGizmoOverlay(): void {
+    const cfg = this.document.lighting;
+    this.renderer.setLightGizmo(
+      cfg.enabled && cfg.showLightGizmo
+        ? {
+            visible: true,
+            lightX: cfg.lightX,
+            lightY: cfg.lightY,
+            color: cfg.lightColor,
+            intensity: cfg.intensity,
+          }
+        : null,
+    );
+  }
+
+  private hitTestLightGizmo(screenX: number, screenY: number): boolean {
+    const pos = this.renderer.getLightGizmoScreenPos();
+    if (!pos) return false;
+    return Math.hypot(screenX - pos.x, screenY - pos.y) <= 20;
+  }
+
+  private handleDragLightGizmo(screenX: number, screenY: number): void {
+    const { lightX, lightY } = this.renderer.screenToNormalizedLightPos(screenX, screenY);
+    this.document.lighting = {
+      ...this.document.lighting,
+      lightX,
+      lightY,
+    };
+    this.lightingPipeline.setConfig(this.document.lighting);
+    this.syncLightGizmoOverlay();
+    this.renderer.markAllDirty();
+    this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
+  }
+
+  private paintSurfaceMaskAt(x0: number, y0: number, x1: number, y1: number): void {
+    const layer = this.document.getActiveLayer();
+    const w = layer.buffer.width;
+    const h = layer.buffer.height;
+    const len = w * h;
+
+    if (!layer.surfaceMaps) {
+      layer.surfaceMaps = {};
+    }
+    if (!layer.surfaceMaps.heightMap || layer.surfaceMaps.heightMap.length !== len) {
+      layer.surfaceMaps.heightMap = new Uint8Array(len).fill(128);
+    }
+    if (!layer.surfaceMaps.occlusionMask || layer.surfaceMaps.occlusionMask.length !== len) {
+      layer.surfaceMaps.occlusionMask = new Uint8Array(len);
+    }
+
+    const heightMap = layer.surfaceMaps.heightMap;
+    const occMask = layer.surfaceMaps.occlusionMask;
+    const points = bresenhamLine(x0, y0, x1, y1);
+    const offsets = getSquareBrushOffsets(Math.max(2, this.brushSize));
+
+    for (let i = 0; i < points.length; i++) {
+      const pt = points[i]!;
+      for (let j = 0; j < offsets.length; j++) {
+        const px = pt.x + offsets[j]!.x;
+        const py = pt.y + offsets[j]!.y;
+        if (!layer.buffer.isInBounds(px, py)) continue;
+        const idx = py * w + px;
+        if (this.surfaceMaskMode === "raise") {
+          heightMap[idx] = Math.min(255, heightMap[idx]! + 28);
+        } else if (this.surfaceMaskMode === "lower") {
+          heightMap[idx] = Math.max(0, heightMap[idx]! - 28);
+        } else if (this.surfaceMaskMode === "occlude") {
+          occMask[idx] = 220;
+        } else if (this.surfaceMaskMode === "erase-mask") {
+          heightMap[idx] = 128;
+          occMask[idx] = 0;
+        }
+      }
+    }
+
+    this.renderer.markAllDirty();
+  }
+
   private buildCompositeSmartFillLayer(
     sourceLayerBuffer: PixelBuffer,
     region: AnalyzedRegion,
@@ -682,6 +960,9 @@ export class EditorApplicationService {
   setAssetType(assetTypeId: AssetTypeId): AssetContextProfile {
     const profile = this.assetContext.setAssetType(assetTypeId);
     this.document.assetContext = this.assetContext.getState();
+    if (this.document.lighting.enabled) {
+      this.renderer.markAllDirty();
+    }
     this.bumpRevisionAndEmit();
     return profile;
   }
@@ -1189,6 +1470,13 @@ export class EditorApplicationService {
     this.document.onionSkin = { ...loaded.onionSkin };
     this.assetContext.restoreState(loaded.assetContext);
     this.document.assetContext = this.assetContext.getState();
+    this.document.lighting = {
+      ...loaded.lighting,
+      lightColor: { ...loaded.lighting.lightColor },
+    };
+    this.lightingPipeline.setConfig(this.document.lighting);
+    this.syncLightGizmoOverlay();
+    this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
     this.document.frames = loaded.frames;
     this.document.activeFrameIndex = loaded.activeFrameIndex;
     this.document.activeLayerId = loaded.activeLayerId;
@@ -1327,14 +1615,33 @@ export class EditorApplicationService {
   }
 
   private handleToolPointerDown(event: PointerInputEvent): void {
+    if (this.document.lighting.enabled && this.surfaceMaskMode !== "none") {
+      this.isPaintingSurfaceMask = true;
+      this.paintSurfaceMaskAt(event.pixelX, event.pixelY, event.pixelX, event.pixelY);
+      return;
+    }
     this.getActiveTool().onPointerDown(event, this.createToolContext());
   }
 
   private handleToolPointerMove(event: PointerInputEvent): void {
+    if (this.isPaintingSurfaceMask) {
+      this.paintSurfaceMaskAt(
+        event.prevPixelX ?? event.pixelX,
+        event.prevPixelY ?? event.pixelY,
+        event.pixelX,
+        event.pixelY,
+      );
+      return;
+    }
     this.getActiveTool().onPointerMove(event, this.createToolContext());
   }
 
   private handleToolPointerUp(event: PointerInputEvent): void {
+    if (this.isPaintingSurfaceMask) {
+      this.isPaintingSurfaceMask = false;
+      this.bumpRevisionAndEmit();
+      return;
+    }
     this.getActiveTool().onPointerUp(event, this.createToolContext());
   }
 
@@ -1402,6 +1709,8 @@ export class EditorApplicationService {
     this.callbacks.onShapeFillModeChange?.(this.shapeFillMode);
     this.callbacks.onSmartFillConfigChange?.(this.getSmartFillConfig());
     this.callbacks.onSmartFillPreviewChange?.(this.getSmartFillPreviewSummary());
+    this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
+    this.callbacks.onSurfaceMaskModeChange?.(this.surfaceMaskMode);
     this.callbacks.onPrimaryColorChange?.(this.getPrimaryColor());
     this.callbacks.onSecondaryColorChange?.(this.getSecondaryColor());
     this.callbacks.onZoomChange?.(this.viewport.zoom);

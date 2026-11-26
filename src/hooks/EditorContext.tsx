@@ -18,6 +18,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       onShapeFillModeChange: (mode) => useEditorStore.getState().setShapeFillMode(mode),
       onSmartFillConfigChange: (config) => useEditorStore.getState().setSmartFillConfig(config),
       onSmartFillPreviewChange: (summary) => useEditorStore.getState().setSmartFillPreview(summary),
+      onLightingConfigChange: (config) => useEditorStore.getState().setLightingConfig(config),
+      onSurfaceMaskModeChange: (mode) => useEditorStore.getState().setSurfaceMaskMode(mode),
       onPrimaryColorChange: (color) => useEditorStore.getState().setPrimaryColor(color),
       onSecondaryColorChange: (color) => useEditorStore.getState().setSecondaryColor(color),
       onRecentColorRecorded: (color) => useEditorStore.getState().recordRecentColor(color),

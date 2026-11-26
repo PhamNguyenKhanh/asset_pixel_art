@@ -16,6 +16,11 @@ import {
   type SmartFillConfig,
   type SmartFillPreviewSummary,
 } from "@/types/smartFill";
+import {
+  createDefaultLightingConfig,
+  type LightingConfig,
+  type SurfaceMaskPaintMode,
+} from "@/types/lighting";
 import { colorsEqual, hexToRgba } from "@/core/image-processing/color";
 import {
   addColorToPalette,
@@ -26,7 +31,7 @@ import {
 
 const MAX_RECENT_COLORS = 12;
 
-export type InspectorTab = "colors" | "fill" | "layers" | "context";
+export type InspectorTab = "colors" | "fill" | "lighting" | "layers" | "context";
 
 export interface EditorUIState {
   activeTool: ToolId;
@@ -34,6 +39,8 @@ export interface EditorUIState {
   shapeFillMode: ShapeFillMode;
   smartFillConfig: SmartFillConfig;
   smartFillPreview: SmartFillPreviewSummary;
+  lightingConfig: LightingConfig;
+  surfaceMaskMode: SurfaceMaskPaintMode;
   primaryColor: RGBA;
   secondaryColor: RGBA;
   recentColors: RGBA[];
@@ -53,6 +60,8 @@ export interface EditorUIState {
   setShapeFillMode: (mode: ShapeFillMode) => void;
   setSmartFillConfig: (config: SmartFillConfig) => void;
   setSmartFillPreview: (summary: SmartFillPreviewSummary) => void;
+  setLightingConfig: (config: LightingConfig) => void;
+  setSurfaceMaskMode: (mode: SurfaceMaskPaintMode) => void;
   setPrimaryColor: (color: RGBA) => void;
   setSecondaryColor: (color: RGBA) => void;
   swapColors: () => void;
@@ -90,6 +99,8 @@ export const useEditorStore = create<EditorUIState>((set) => ({
     bounds: null,
     mode: "solid",
   },
+  lightingConfig: createDefaultLightingConfig(),
+  surfaceMaskMode: "none",
   primaryColor: initialPrimary,
   secondaryColor: initialSecondary,
   recentColors: [initialPrimary, initialSecondary],
@@ -132,6 +143,14 @@ export const useEditorStore = create<EditorUIState>((set) => ({
   setShapeFillMode: (shapeFillMode) => set({ shapeFillMode }),
   setSmartFillConfig: (smartFillConfig) => set({ smartFillConfig: { ...smartFillConfig } }),
   setSmartFillPreview: (smartFillPreview) => set({ smartFillPreview: { ...smartFillPreview } }),
+  setLightingConfig: (lightingConfig) =>
+    set({
+      lightingConfig: {
+        ...lightingConfig,
+        lightColor: { ...lightingConfig.lightColor },
+      },
+    }),
+  setSurfaceMaskMode: (surfaceMaskMode) => set({ surfaceMaskMode }),
   setPrimaryColor: (primaryColor) => set({ primaryColor: { ...primaryColor } }),
   setSecondaryColor: (secondaryColor) => set({ secondaryColor: { ...secondaryColor } }),
   swapColors: () =>

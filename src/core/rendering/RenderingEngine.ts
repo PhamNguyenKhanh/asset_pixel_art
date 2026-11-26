@@ -1,6 +1,7 @@
 import type { DirtyRect, Point, RGBA, SelectionRect } from "@/types/editor";
+import type { ILightingPipeline } from "@/core/contracts";
 import type { PixelDocument } from "@/core/document/PixelDocument";
-import type { PixelBuffer } from "@/core/document/PixelBuffer";
+import { PixelBuffer } from "@/core/document/PixelBuffer";
 import type { ViewportTransform } from "@/core/canvas/ViewportTransform";
 import { clampDirtyRect, getDirtyRectSize, mergeDirtyRects } from "@/core/canvas/dirtyRect";
 import { getSquareBrushOffsets } from "@/core/image-processing/bresenham";
@@ -12,6 +13,14 @@ export interface CursorOverlayState {
   brushSize: number;
   color: RGBA | null;
   isEraser: boolean;
+}
+
+export interface LightGizmoOverlayState {
+  visible: boolean;
+  lightX: number;
+  lightY: number;
+  color: RGBA;
+  intensity: number;
 }
 
 const GRID_MIN_ZOOM = 4;
@@ -39,6 +48,10 @@ export class RenderingEngine {
 
   private previewBuffer: PixelBuffer | null = null;
   private previewReplacesActiveLayer = false;
+  private lightingPipeline: ILightingPipeline | null = null;
+  private lightSourceScratch: PixelBuffer | null = null;
+  private lightOutputScratch: PixelBuffer | null = null;
+  private lightGizmo: LightGizmoOverlayState | null = null;
 
   private cssWidth = 0;
   private cssHeight = 0;
@@ -114,6 +127,39 @@ export class RenderingEngine {
   setSelection(selection: SelectionRect | null): void {
     this.selection = selection;
     this.markOverlayDirty();
+  }
+
+  setLightingPipeline(pipeline: ILightingPipeline | null): void {
+    this.lightingPipeline = pipeline;
+    this.markAllDirty();
+  }
+
+  setLightGizmo(gizmo: LightGizmoOverlayState | null): void {
+    this.lightGizmo = gizmo;
+    this.markOverlayDirty();
+  }
+
+  getLightGizmoScreenPos(): Point | null {
+    if (!this.lightGizmo || !this.lightGizmo.visible) return null;
+    const rect = this.viewport.getCanvasScreenRect(this.document.width, this.document.height);
+    const halfW = rect.width / 2;
+    const halfH = rect.height / 2;
+    return {
+      x: rect.x + halfW + this.lightGizmo.lightX * halfW,
+      y: rect.y + halfH + this.lightGizmo.lightY * halfH,
+    };
+  }
+
+  screenToNormalizedLightPos(screenX: number, screenY: number): { lightX: number; lightY: number } {
+    const rect = this.viewport.getCanvasScreenRect(this.document.width, this.document.height);
+    const halfW = Math.max(1, rect.width / 2);
+    const halfH = Math.max(1, rect.height / 2);
+    const rawX = (screenX - (rect.x + halfW)) / halfW;
+    const rawY = (screenY - (rect.y + halfH)) / halfH;
+    return {
+      lightX: Math.max(-1.6, Math.min(1.6, Math.round(rawX * 100) / 100)),
+      lightY: Math.max(-1.6, Math.min(1.6, Math.round(rawY * 100) / 100)),
+    };
   }
 
   resizeViewport(cssWidth: number, cssHeight: number, dpr = 1): void {
@@ -283,11 +329,13 @@ export class RenderingEngine {
     const width = this.document.width;
     const height = this.document.height;
     const onionEnabled = this.document.onionSkin.enabled && this.document.frames.length > 1;
+    const lightingEnabled = Boolean(this.lightingPipeline?.enabled);
     const visibleLayers = frame.layers.filter((l) => l.visible && l.opacity > 0);
 
-    // Ultra-fast partial dirty-rect path when no onion skin, no preview overlay, and 1 opaque layer
+    // Ultra-fast partial dirty-rect path when no onion skin, no preview overlay, no lighting, and 1 opaque layer
     if (
       !onionEnabled &&
+      !lightingEnabled &&
       !this.previewBuffer &&
       visibleLayers.length === 1 &&
       visibleLayers[0]!.opacity >= 1
@@ -346,17 +394,50 @@ export class RenderingEngine {
     }
 
     const activeLayerId = this.document.activeLayerId;
-    for (let li = 0; li < frame.layers.length; li++) {
-      const layer = frame.layers[li]!;
-      if (!layer.visible || layer.opacity <= 0) continue;
 
-      const isTargetLayer = layer.id === activeLayerId;
-      if (isTargetLayer && this.previewBuffer && this.previewReplacesActiveLayer) {
-        compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
-      } else {
-        compositeOverlayBuffer(out, layer.buffer.data, layer.opacity);
-        if (isTargetLayer && this.previewBuffer) {
+    if (lightingEnabled && this.lightingPipeline) {
+      if (
+        !this.lightSourceScratch ||
+        this.lightSourceScratch.width !== width ||
+        this.lightSourceScratch.height !== height
+      ) {
+        this.lightSourceScratch = new PixelBuffer(width, height);
+        this.lightOutputScratch = new PixelBuffer(width, height);
+      }
+      const rawBuf = this.lightSourceScratch;
+      const litBuf = this.lightOutputScratch!;
+      rawBuf.clear();
+
+      for (let li = 0; li < frame.layers.length; li++) {
+        const layer = frame.layers[li]!;
+        if (!layer.visible || layer.opacity <= 0) continue;
+        const isTargetLayer = layer.id === activeLayerId;
+        if (isTargetLayer && this.previewBuffer && this.previewReplacesActiveLayer) {
+          compositeOverlayBuffer(rawBuf.data, this.previewBuffer.data, layer.opacity);
+        } else {
+          compositeOverlayBuffer(rawBuf.data, layer.buffer.data, layer.opacity);
+          if (isTargetLayer && this.previewBuffer) {
+            compositeOverlayBuffer(rawBuf.data, this.previewBuffer.data, layer.opacity);
+          }
+        }
+      }
+
+      // Non-destructive lighting pass on composited frame buffer
+      this.lightingPipeline.process(rawBuf, litBuf);
+      compositeOverlayBuffer(out, litBuf.data, 1);
+    } else {
+      for (let li = 0; li < frame.layers.length; li++) {
+        const layer = frame.layers[li]!;
+        if (!layer.visible || layer.opacity <= 0) continue;
+
+        const isTargetLayer = layer.id === activeLayerId;
+        if (isTargetLayer && this.previewBuffer && this.previewReplacesActiveLayer) {
           compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
+        } else {
+          compositeOverlayBuffer(out, layer.buffer.data, layer.opacity);
+          if (isTargetLayer && this.previewBuffer) {
+            compositeOverlayBuffer(out, this.previewBuffer.data, layer.opacity);
+          }
         }
       }
     }
@@ -536,6 +617,69 @@ export class RenderingEngine {
         ctx.lineWidth = 1;
         ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
       }
+    }
+
+    // 4. Interactive Dynamic Light Source Gizmo (Directional Light Handle)
+    const gizmoPos = this.getLightGizmoScreenPos();
+    if (gizmoPos && this.lightGizmo) {
+      const cx = rect.x + rect.width / 2;
+      const cy = rect.y + rect.height / 2;
+      const lightCss = rgbaToCss({ ...this.lightGizmo.color, a: 255 });
+
+      ctx.save();
+      // Dashed directional light ray from gizmo toward sprite center
+      ctx.beginPath();
+      ctx.setLineDash([5, 4]);
+      ctx.moveTo(gizmoPos.x, gizmoPos.y);
+      ctx.lineTo(cx, cy);
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Soft outer glow halo
+      const glowRadius = 18 + Math.min(8, this.lightGizmo.intensity * 5);
+      const grad = ctx.createRadialGradient(
+        gizmoPos.x,
+        gizmoPos.y,
+        3,
+        gizmoPos.x,
+        gizmoPos.y,
+        glowRadius,
+      );
+      grad.addColorStop(0, rgbaToCss({ ...this.lightGizmo.color, a: 160 }));
+      grad.addColorStop(1, "rgba(251, 191, 36, 0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(gizmoPos.x, gizmoPos.y, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Sun rays tick marks around handle
+      ctx.strokeStyle = lightCss;
+      ctx.lineWidth = 1.5;
+      for (let a = 0; a < 8; a++) {
+        const ang = (a * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(gizmoPos.x + Math.cos(ang) * 11, gizmoPos.y + Math.sin(ang) * 11);
+        ctx.lineTo(gizmoPos.x + Math.cos(ang) * 15, gizmoPos.y + Math.sin(ang) * 15);
+        ctx.stroke();
+      }
+
+      // Crisp dark border + glowing core handle
+      ctx.beginPath();
+      ctx.arc(gizmoPos.x, gizmoPos.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = lightCss;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#111318";
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(gizmoPos.x, gizmoPos.y, 9.5, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.stroke();
+      ctx.restore();
     }
 
     ctx.restore();

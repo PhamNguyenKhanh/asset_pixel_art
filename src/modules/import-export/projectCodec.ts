@@ -1,5 +1,6 @@
 import type { CustomPalette, OnionSkinConfig } from "@/types/editor";
 import type { AssetContextState } from "@/types/assetContext";
+import { createDefaultLightingConfig, type LightingConfig } from "@/types/lighting";
 import { Frame } from "@/core/document/Frame";
 import { Layer } from "@/core/document/Layer";
 import { PixelDocument, validateCanvasDimensions } from "@/core/document/PixelDocument";
@@ -32,6 +33,7 @@ export interface SerializedProject {
   activeLayerId: string;
   onionSkin: OnionSkinConfig;
   assetContext?: AssetContextState;
+  lighting?: LightingConfig;
   frames: SerializedFrame[];
   customPalettes?: CustomPalette[];
   savedAt: string;
@@ -80,6 +82,10 @@ export function serializeProject(
     activeLayerId: doc.activeLayerId,
     onionSkin: { ...doc.onionSkin },
     assetContext: { ...doc.assetContext },
+    lighting: {
+      ...doc.lighting,
+      lightColor: { ...doc.lighting.lightColor },
+    },
     frames: doc.frames.map((frame) => ({
       id: frame.id,
       durationMs: frame.durationMs,
@@ -135,6 +141,16 @@ export function deserializeProject(raw: unknown): {
     doc.assetContext = {
       assetTypeId: data.assetContext.assetTypeId,
       preferredMaterialId: data.assetContext.preferredMaterialId ?? null,
+    };
+  }
+  if (data.lighting && typeof data.lighting === "object") {
+    const defaults = createDefaultLightingConfig();
+    doc.lighting = {
+      ...defaults,
+      ...data.lighting,
+      lightColor: data.lighting.lightColor
+        ? { ...defaults.lightColor, ...data.lighting.lightColor }
+        : defaults.lightColor,
     };
   }
 

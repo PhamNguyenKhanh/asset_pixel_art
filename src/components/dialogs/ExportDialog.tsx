@@ -59,7 +59,11 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
         const blob = await pixelBufferToPngBlob(buf, scale);
         downloadBlob(blob, `${safeSlug}${scale > 1 ? `_${scale}x` : ""}.png`);
       } else if (tab === "gif") {
-        const bytes = encodeGif(service.document, { scale, repeat: gifRepeat });
+        const bytes = encodeGif(service.document, {
+          scale,
+          repeat: gifRepeat,
+          postProcessFrame: (buf, idx) => service.applyLightingToBuffer(buf, idx),
+        });
         const copy = new Uint8Array(bytes.length);
         copy.set(bytes);
         const blob = new Blob([copy], { type: "image/gif" });
@@ -70,6 +74,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
           columns: sheetColumns,
           padding: sheetPadding,
           scale,
+          postProcessFrame: (buf, idx) => service.applyLightingToBuffer(buf, idx),
         });
         const pngBlob = await pixelBufferToPngBlob(buffer, 1);
         downloadBlob(pngBlob, `${safeSlug}_sheet.png`);

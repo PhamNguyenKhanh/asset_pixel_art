@@ -8,6 +8,9 @@ export interface InputCallbacks {
   onToolPointerUp(event: PointerInputEvent): void;
   onHoverPixelChange(pixel: Point | null): void;
   onViewportChanged(): void;
+  hitTestLightGizmo?(screenX: number, screenY: number): boolean;
+  onDragLightGizmo?(screenX: number, screenY: number): void;
+  onEndDragLightGizmo?(): void;
 }
 
 /**
@@ -21,6 +24,7 @@ export class InputController {
 
   private isPanning = false;
   private isSpacePressed = false;
+  private isDraggingLight = false;
   private isToolActive = false;
   private activeButton = 0;
   private lastPanX = 0;
@@ -137,6 +141,14 @@ export class InputController {
       return;
     }
 
+    // Left click on interactive Light Source Gizmo drags the directional light smoothly
+    if (e.button === 0 && this.callbacks.hitTestLightGizmo?.(local.x, local.y)) {
+      this.isDraggingLight = true;
+      this.element.style.cursor = "grabbing";
+      this.callbacks.onDragLightGizmo?.(local.x, local.y);
+      return;
+    }
+
     // Left click (0) or Right click (2) invokes active drawing tool
     if (e.button === 0 || e.button === 2) {
       const pixel = this.viewport.screenToPixel(local.x, local.y);
@@ -163,6 +175,16 @@ export class InputController {
       return;
     }
 
+    if (this.isDraggingLight) {
+      this.callbacks.onDragLightGizmo?.(local.x, local.y);
+      return;
+    }
+
+    if (this.element && !this.isToolActive && !this.isSpacePressed) {
+      const overGizmo = this.callbacks.hitTestLightGizmo?.(local.x, local.y) ?? false;
+      this.element.style.cursor = overGizmo ? "grab" : "";
+    }
+
     const pixel = this.viewport.screenToPixel(local.x, local.y);
     this.callbacks.onHoverPixelChange(pixel);
 
@@ -183,6 +205,15 @@ export class InputController {
       if (this.element) {
         this.element.style.cursor = this.isSpacePressed ? "grab" : "";
       }
+      return;
+    }
+
+    if (this.isDraggingLight) {
+      this.isDraggingLight = false;
+      if (this.element) {
+        this.element.style.cursor = "";
+      }
+      this.callbacks.onEndDragLightGizmo?.();
       return;
     }
 

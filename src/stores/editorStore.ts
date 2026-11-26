@@ -123,7 +123,7 @@ export const useEditorStore = create<EditorUIState>((set) => ({
     frameCount: 1,
     layerCount: 1,
     layers: [{ id: "layer-0", name: "Layer 1", visible: true, locked: false, opacity: 1 }],
-    frames: [{ id: "frame-0", index: 0, durationMs: Math.round(1000 / DEFAULT_FPS) }],
+    frames: [{ id: "frame-0", index: 0, durationMs: Math.round(1000 / DEFAULT_FPS), revision: 0 }],
     fps: DEFAULT_FPS,
     onionSkin: { enabled: false, prevFrames: 1, nextFrames: 1, opacity: 0.3 },
     selection: null,
@@ -133,6 +133,7 @@ export const useEditorStore = create<EditorUIState>((set) => ({
     undoCount: 0,
     redoCount: 0,
     revision: 0,
+    lightingRevision: 0,
   },
 
   setActiveTool: (activeTool) => set({ activeTool }),

@@ -46,7 +46,9 @@ export function AnimationPreviewCard() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const buf = service.getCompositedFrameBuffer(displayIndex);
+    const buf = service.getCompositedFrameBuffer(displayIndex, {
+      includeLighting: true,
+    });
     ctx.clearRect(0, 0, PREVIEW_BOX, PREVIEW_BOX);
     if (!buf) return;
 

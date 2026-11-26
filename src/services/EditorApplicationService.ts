@@ -133,6 +133,8 @@ export class EditorApplicationService {
   private viewportWidth = 0;
   private viewportHeight = 0;
   private revision = 0;
+  private lightingRevision = 0;
+  private frameRevisions = new Map<string, number>();
   private clipboard: PixelBuffer | null = null;
   private unsubscribeHistory: (() => void) | null = null;
 
@@ -165,7 +167,7 @@ export class EditorApplicationService {
       onViewportChanged: () => this.handleViewportChanged(),
       hitTestLightGizmo: (sx, sy) => this.hitTestLightGizmo(sx, sy),
       onDragLightGizmo: (sx, sy) => this.handleDragLightGizmo(sx, sy),
-      onEndDragLightGizmo: () => this.bumpRevisionAndEmit(),
+      onEndDragLightGizmo: () => this.bumpLightingRevisionAndEmit(),
     });
 
     this.shortcuts = new ShortcutManager();
@@ -230,6 +232,7 @@ export class EditorApplicationService {
         id: f.id,
         index,
         durationMs: f.durationMs,
+        revision: this.frameRevisions.get(f.id) ?? 0,
       })),
       fps: this.document.fps,
       onionSkin: { ...this.document.onionSkin },
@@ -240,14 +243,20 @@ export class EditorApplicationService {
       undoCount: this.history.undoCount,
       redoCount: this.history.redoCount,
       revision: this.revision,
+      lightingRevision: this.lightingRevision,
     };
   }
 
-  getCompositedFrameBuffer(frameIndex: number): PixelBuffer | null {
+  getCompositedFrameBuffer(
+    frameIndex: number,
+    options?: { includeLighting?: boolean },
+  ): PixelBuffer | null {
     const frame = this.document.frames[frameIndex];
     if (!frame) return null;
     const raw = compositeLayers(frame.layers, this.document.width, this.document.height);
-    return this.applyLightingToBuffer(raw, frameIndex);
+    const shouldApplyLighting =
+      options?.includeLighting ?? frameIndex === this.document.activeFrameIndex;
+    return shouldApplyLighting ? this.applyLightingToBuffer(raw, frameIndex) : raw;
   }
 
   applyLightingToBuffer(source: PixelBuffer, frameIndex?: number): PixelBuffer {
@@ -425,7 +434,7 @@ export class EditorApplicationService {
     this.history.clear();
     this.renderer.setDocument(this.document);
     this.fitViewport();
-    this.bumpRevisionAndEmit();
+    this.bumpAllFramesRevisionAndEmit();
   }
 
   // ---- Intelligent Color Fill (Phase 4) ----
@@ -621,7 +630,7 @@ export class EditorApplicationService {
         afterPixels,
         onApplied: (appliedRect) => {
           this.renderer.markPixelsDirty(appliedRect);
-          this.bumpRevisionAndEmit();
+          this.bumpFrameRevisionAndEmit(pending.frameId);
         },
       }),
     );
@@ -630,7 +639,7 @@ export class EditorApplicationService {
       this.callbacks.onRecentColorRecorded?.({ ...pending.baseColor });
     }
     this.renderer.markPixelsDirty(rect);
-    this.bumpRevisionAndEmit();
+    this.bumpFrameRevisionAndEmit(pending.frameId);
     return true;
   }
 
@@ -691,7 +700,7 @@ export class EditorApplicationService {
     this.syncLightGizmoOverlay();
     this.renderer.markAllDirty();
     this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
-    this.bumpRevisionAndEmit();
+    this.bumpLightingRevisionAndEmit();
   }
 
   syncLightingFromAssetContext(): void {
@@ -718,7 +727,7 @@ export class EditorApplicationService {
     this.syncLightGizmoOverlay();
     this.renderer.markAllDirty();
     this.callbacks.onLightingConfigChange?.(this.getLightingConfig());
-    this.bumpRevisionAndEmit();
+    this.bumpLightingRevisionAndEmit();
   }
 
   clearActiveLayerSurfaceMasks(): void {
@@ -726,7 +735,7 @@ export class EditorApplicationService {
     if (!layer.surfaceMaps) return;
     layer.surfaceMaps = undefined;
     this.renderer.markAllDirty();
-    this.bumpRevisionAndEmit();
+    this.bumpLightingRevisionAndEmit();
   }
 
   /**
@@ -962,8 +971,10 @@ export class EditorApplicationService {
     this.document.assetContext = this.assetContext.getState();
     if (this.document.lighting.enabled) {
       this.renderer.markAllDirty();
+      this.bumpLightingRevisionAndEmit();
+    } else {
+      this.bumpRevisionAndEmit();
     }
-    this.bumpRevisionAndEmit();
     return profile;
   }
 
@@ -1279,7 +1290,7 @@ export class EditorApplicationService {
     const changed = LayerService.setLayerVisibility(this.document, layerId, visible);
     if (changed) {
       this.renderer.markAllDirty();
-      this.bumpRevisionAndEmit();
+      this.bumpActiveFrameRevisionAndEmit();
     }
     return changed;
   }
@@ -1288,7 +1299,7 @@ export class EditorApplicationService {
     const changed = LayerService.setLayerOpacity(this.document, layerId, opacity);
     if (changed) {
       this.renderer.markAllDirty();
-      this.bumpRevisionAndEmit();
+      this.bumpActiveFrameRevisionAndEmit();
     }
     return changed;
   }
@@ -1487,7 +1498,7 @@ export class EditorApplicationService {
     if (customPalettes) {
       this.callbacks.onCustomPalettesLoaded?.(customPalettes);
     }
-    this.bumpRevisionAndEmit();
+    this.bumpAllFramesRevisionAndEmit();
   }
 
   // ---- Undo / Redo ----
@@ -1497,7 +1508,7 @@ export class EditorApplicationService {
     const undone = this.history.undo();
     if (!undone) return false;
     this.renderer.setDocument(this.document);
-    this.bumpRevisionAndEmit();
+    this.bumpAllFramesRevisionAndEmit();
     return true;
   }
 
@@ -1506,7 +1517,7 @@ export class EditorApplicationService {
     const redone = this.history.redo();
     if (!redone) return false;
     this.renderer.setDocument(this.document);
-    this.bumpRevisionAndEmit();
+    this.bumpAllFramesRevisionAndEmit();
     return true;
   }
 
@@ -1547,12 +1558,12 @@ export class EditorApplicationService {
         afterPixels,
         onApplied: (rect) => {
           this.renderer.markPixelsDirty(rect);
-          this.bumpRevisionAndEmit();
+          this.bumpFrameRevisionAndEmit(frame.id);
         },
       }),
     );
     this.renderer.markPixelsDirty(diffRect);
-    this.bumpRevisionAndEmit();
+    this.bumpFrameRevisionAndEmit(frame.id);
     return true;
   }
 
@@ -1577,7 +1588,7 @@ export class EditorApplicationService {
           if (refitViewport) {
             this.fitViewport();
           }
-          this.bumpRevisionAndEmit();
+          this.bumpAllFramesRevisionAndEmit();
         },
       }),
     );
@@ -1586,7 +1597,7 @@ export class EditorApplicationService {
     if (refitViewport) {
       this.fitViewport();
     }
-    this.bumpRevisionAndEmit();
+    this.bumpAllFramesRevisionAndEmit();
     return true;
   }
 
@@ -1606,7 +1617,7 @@ export class EditorApplicationService {
       setPreviewBuffer: (buffer, replaceActiveLayer) =>
         this.renderer.setPreviewBuffer(buffer, replaceActiveLayer),
       markDirty: (rect?: DirtyRect) => this.renderer.markPixelsDirty(rect),
-      notifyDocumentChanged: () => this.bumpRevisionAndEmit(),
+      notifyDocumentChanged: () => this.bumpActiveFrameRevisionAndEmit(),
       getAssetContext: () => this.assetContext.getActiveProfile(),
       getSmartFillConfig: () => this.getSmartFillConfig(),
       startSmartFillPreview: (sx, sy, color) => this.startSmartFillPreview(sx, sy, color),
@@ -1639,7 +1650,7 @@ export class EditorApplicationService {
   private handleToolPointerUp(event: PointerInputEvent): void {
     if (this.isPaintingSurfaceMask) {
       this.isPaintingSurfaceMask = false;
-      this.bumpRevisionAndEmit();
+      this.bumpLightingRevisionAndEmit();
       return;
     }
     this.getActiveTool().onPointerUp(event, this.createToolContext());
@@ -1695,6 +1706,30 @@ export class EditorApplicationService {
   }
 
   private bumpRevisionAndEmit(): void {
+    this.revision += 1;
+    this.emitDocumentMeta();
+  }
+
+  private bumpLightingRevisionAndEmit(): void {
+    this.lightingRevision += 1;
+    this.revision += 1;
+    this.emitDocumentMeta();
+  }
+
+  private bumpFrameRevisionAndEmit(frameId: string): void {
+    this.frameRevisions.set(frameId, (this.frameRevisions.get(frameId) ?? 0) + 1);
+    this.revision += 1;
+    this.emitDocumentMeta();
+  }
+
+  private bumpActiveFrameRevisionAndEmit(): void {
+    this.bumpFrameRevisionAndEmit(this.document.getActiveFrame().id);
+  }
+
+  private bumpAllFramesRevisionAndEmit(): void {
+    for (const frame of this.document.frames) {
+      this.frameRevisions.set(frame.id, (this.frameRevisions.get(frame.id) ?? 0) + 1);
+    }
     this.revision += 1;
     this.emitDocumentMeta();
   }

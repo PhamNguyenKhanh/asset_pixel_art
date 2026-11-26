@@ -70,6 +70,7 @@ export interface FrameSummary {
   id: string;
   index: number;
   durationMs: number;
+  revision: number;
 }
 
 export interface OnionSkinConfig {
@@ -121,4 +122,5 @@ export interface DocumentMetadataSnapshot {
   undoCount: number;
   redoCount: number;
   revision: number;
+  lightingRevision: number;
 }

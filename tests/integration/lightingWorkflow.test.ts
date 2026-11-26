@@ -42,9 +42,31 @@ describe("Dynamic Lighting Studio integration workflow", () => {
       Array.from(f1Original),
     );
 
-    // Composited output (used by Animation Preview & Export) DOES include live lighting
-    const litComposite = service.getCompositedFrameBuffer(0)!;
-    expect(Array.from(litComposite.data)).not.toEqual(Array.from(f0Original));
+    // Composited output applies live lighting ONLY to the active frame by default
+    const litFrame0 = service.getCompositedFrameBuffer(0)!;
+    const unlitFrame1 = service.getCompositedFrameBuffer(1)!;
+    expect(Array.from(litFrame0.data)).not.toEqual(Array.from(f0Original));
+    expect(Array.from(unlitFrame1.data)).toEqual(Array.from(f1Original));
+
+    // Explicit includeLighting (e.g. animation playback / all-frame export) lights inactive frames on demand
+    const explicitlyLitFrame1 = service.getCompositedFrameBuffer(1, { includeLighting: true })!;
+    expect(Array.from(explicitlyLitFrame1.data)).not.toEqual(Array.from(f1Original));
+
+    // Tuning lighting bumps lightingRevision without bumping per-frame content revisions
+    const metaBeforeTune = service.getDocumentMeta();
+    service.setLightingConfig({ intensity: 1.2 });
+    const metaAfterTune = service.getDocumentMeta();
+    expect(metaAfterTune.lightingRevision).toBeGreaterThan(metaBeforeTune.lightingRevision);
+    expect(metaAfterTune.frames[0]!.revision).toBe(metaBeforeTune.frames[0]!.revision);
+    expect(metaAfterTune.frames[1]!.revision).toBe(metaBeforeTune.frames[1]!.revision);
+
+    // Switching active frame transfers live lighting to the newly selected frame; previous frame loses lighting
+    service.selectFrame(1);
+    expect(Array.from(service.getCompositedFrameBuffer(0)!.data)).toEqual(Array.from(f0Original));
+    expect(Array.from(service.getCompositedFrameBuffer(1)!.data)).not.toEqual(
+      Array.from(f1Original),
+    );
+    service.selectFrame(0);
 
     // Project serialization preserves lighting settings cleanly
     const exported = service.exportSerializedProject();

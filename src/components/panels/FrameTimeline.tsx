@@ -20,12 +20,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 const THUMB_SIZE = 44;
 
-function FrameThumbnail({
+const FrameThumbnail = React.memo(function FrameThumbnail({
   frameIndex,
-  revision,
+  isActive,
+  frameRevision,
+  lightingKey,
 }: {
   frameIndex: number;
-  revision: number;
+  isActive: boolean;
+  frameRevision: number;
+  lightingKey: number;
 }) {
   const service = useEditorService();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -36,7 +40,9 @@ function FrameThumbnail({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const buf = service.getCompositedFrameBuffer(frameIndex);
+    const buf = service.getCompositedFrameBuffer(frameIndex, {
+      includeLighting: isActive,
+    });
     ctx.clearRect(0, 0, THUMB_SIZE, THUMB_SIZE);
     if (!buf) return;
 
@@ -57,7 +63,7 @@ function FrameThumbnail({
 
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(scratch, 0, 0, buf.width, buf.height, dx, dy, w, h);
-  }, [service, frameIndex, revision]);
+  }, [service, frameIndex, isActive, frameRevision, lightingKey]);
 
   return (
     <canvas
@@ -67,11 +73,12 @@ function FrameThumbnail({
       className="pixelated checkerboard-swatch block h-11 w-11 rounded border border-white/10"
     />
   );
-}
+});
 
 export function FrameTimeline() {
   const service = useEditorService();
   const docMeta = useEditorStore((s) => s.documentMeta);
+  const lightingEnabled = useEditorStore((s) => s.lightingConfig.enabled);
   const timelineOpen = useEditorStore((s) => s.timelineOpen);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const setIsPlaying = useEditorStore((s) => s.setIsPlaying);
@@ -173,7 +180,12 @@ export function FrameTimeline() {
               }`}
             >
               <div className="relative">
-                <FrameThumbnail frameIndex={index} revision={docMeta.revision} />
+                <FrameThumbnail
+                  frameIndex={index}
+                  isActive={isActive}
+                  frameRevision={frame.revision}
+                  lightingKey={isActive && lightingEnabled ? docMeta.lightingRevision + 1 : 0}
+                />
                 <span className="absolute left-0.5 top-0.5 rounded bg-black/75 px-1 font-mono text-[9px] text-zinc-200">
                   {index + 1}
                 </span>
